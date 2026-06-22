@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Sparkles, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Sparkles, Mail, Lock, Eye, EyeOff, Shield } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 const LoginPage = () => {

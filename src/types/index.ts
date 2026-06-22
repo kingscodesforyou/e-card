@@ -8,6 +8,7 @@ export interface CardElement {
   zIndex?: number;
   visible?: boolean;
   locked?: boolean;
+  selected?: boolean;
   children?: string[];
   childElements?: CardElement[];
   style: {
