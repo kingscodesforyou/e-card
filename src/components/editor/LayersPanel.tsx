@@ -144,12 +144,15 @@ export function LayersPanel() {
       return;
     }
 
-    let finalTargetIndex = dropPosition.index;
+    const displayElements = [...(currentPage?.elements || [])].sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0));
+    const draggedDisplayIdx = displayElements.findIndex(el => el.id === draggingId);
+    
+    let finalDisplayIndex = dropPosition.index;
     if (dropPosition.position === 'below') {
-      finalTargetIndex = Math.min(finalTargetIndex + 1, allElements.length);
+      finalDisplayIndex = Math.min(finalDisplayIndex + 1, displayElements.length);
     }
     
-    if (draggedIdx === finalTargetIndex) {
+    if (draggedDisplayIdx === finalDisplayIndex) {
       setDraggingId(null);
       setDropPosition(null);
       setIsDragOver(false);
@@ -162,16 +165,16 @@ export function LayersPanel() {
     
     let newZIndex: number;
 
-    if (finalTargetIndex === 0) {
+    if (finalDisplayIndex === 0) {
       newZIndex = currentMaxZIndex + 1;
-    } else if (finalTargetIndex >= allElements.length) {
+    } else if (finalDisplayIndex >= displayElements.length) {
       newZIndex = currentMinZIndex - 1;
     } else {
-      const targetElement = allElements[finalTargetIndex];
-      const prevElement = allElements[finalTargetIndex - 1];
-      const gap = ((targetElement.zIndex || 0) - (prevElement?.zIndex || 0)) / 2;
+      const targetDisplayElement = displayElements[finalDisplayIndex];
+      const prevDisplayElement = displayElements[finalDisplayIndex - 1];
+      const gap = ((prevDisplayElement?.zIndex || 0) - (targetDisplayElement.zIndex || 0)) / 2;
       
-      newZIndex = (prevElement?.zIndex || 0) + gap;
+      newZIndex = (targetDisplayElement.zIndex || 0) + gap;
     }
 
     updateElement(draggingId, { zIndex: newZIndex });

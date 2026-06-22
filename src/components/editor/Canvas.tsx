@@ -111,7 +111,7 @@ const Canvas = () => {
       width: element.size ? `${element.size.width}%` : 'auto',
       height: element.size ? `${element.size.height}%` : 'auto',
       transform: element.rotation ? `rotate(${element.rotation}deg)` : undefined,
-      zIndex: element.zIndex || 1,
+      zIndex: Math.round(element.zIndex || 1),
       cursor: 'move',
       // 仅保留 CSSProperties 支持的字段
       fontSize: element.style.fontSize,
