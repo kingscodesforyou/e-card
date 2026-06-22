@@ -1,0 +1,58 @@
+schema_version: 1
+module_path: ""
+title: 电子贺卡创作与管理平台
+scope:
+    - .gitignore
+    - README.md
+    - eslint.config.js
+    - index.html
+    - package-lock.json
+    - package.json
+    - postcss.config.js
+    - tailwind.config.js
+    - tsconfig.json
+    - vite.config.ts
+    - src/
+    - .trae/
+    - .trae\specs\auth-admin-features\checklist.md
+    - .trae\specs\auth-admin-features\spec.md
+    - .trae\specs\auth-admin-features\tasks.md
+    - public\favicon.svg
+    - src\App.tsx
+    - src\assets\react.svg
+    - src\components\admin\AdminLayout.tsx
+    - src\components\common\Footer.tsx
+    - src\components\common\Header.tsx
+    - src\components\editor\Canvas.tsx
+    - src\components\editor\PropertyPanel.tsx
+    - src\components\editor\Toolbar.tsx
+    - src\components\templates\FilterPanel.tsx
+    - src\components\templates\TemplateCard.tsx
+    - src\data\mockTemplates.ts
+    - src\hooks\useAuth.ts
+    - src\hooks\useTheme.ts
+    - src\index.css
+    - src\lib\utils.ts
+    - src\main.tsx
+    - src\pages\EditorPage.tsx
+    - src\pages\ExportPage.tsx
+    - src\pages\ForgotPasswordPage.tsx
+    - src\pages\HomePage.tsx
+    - src\pages\LoginPage.tsx
+    - src\pages\PreviewPage.tsx
+    - src\pages\RegisterPage.tsx
+    - src\pages\TemplateLibrary.tsx
+    - src\pages\UserProfile.tsx
+    - src\pages\admin\AdminLoginPage.tsx
+    - src\pages\admin\CardManagementPage.tsx
+    - src\pages\admin\DashboardPage.tsx
+    - src\pages\admin\TemplateManagementPage.tsx
+    - src\pages\admin\UserManagementPage.tsx
+    - src\store\index.ts
+    - src\types\index.ts
+    - src\utils\export.ts
+    - src\utils\supabase.ts
+    - src\vite-env.d.ts
+source_files: []
+depends_on: []
+related_to: []
