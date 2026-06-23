@@ -24,13 +24,16 @@ export const useKeyboardShortcuts = () => {
     selectElement,
     groupElements,
     ungroupElement,
+    duplicateElement,
     currentCard,
+    updateElement,
+    addElement,
   } = useEditorStore();
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     const target = e.target as HTMLElement;
     const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
-    
+
     if (isInput) return;
 
     const keys: string[] = [];
@@ -50,6 +53,7 @@ export const useKeyboardShortcuts = () => {
       'ctrl+]': () => selectedElementId && bringForward(selectedElementId),
       'ctrl+[': () => selectedElementId && sendBackward(selectedElementId),
       'ctrl+shift+]': () => selectedElementId && bringToFront(selectedElementId),
+      'ctrl+shift+=': () => selectedElementId && bringToFront(selectedElementId),
       'ctrl+shift+[': () => selectedElementId && sendToBack(selectedElementId),
       'ctrl+shift+v': () => selectedElementId && toggleVisibility(selectedElementId),
       'ctrl+shift+l': () => selectedElementId && toggleLock(selectedElementId),
@@ -57,6 +61,15 @@ export const useKeyboardShortcuts = () => {
       'ctrl+g': () => {
         const currentPage = currentCard.pages[currentCard.currentPageIndex];
         if (currentPage) {
+          // 如果当前选中了一个 group 元素，则拆分
+          if (selectedElementId) {
+            const selected = currentPage.elements.find(el => el.id === selectedElementId);
+            if (selected?.type === 'group') {
+              ungroupElement(selectedElementId);
+              return;
+            }
+          }
+          // 否则尝试组合所有标记为 selected 的元素
           const selectedElements = currentPage.elements.filter(el => el.selected);
           if (selectedElements.length >= 2) {
             groupElements(selectedElements.map(el => el.id));
@@ -64,6 +77,20 @@ export const useKeyboardShortcuts = () => {
         }
       },
       'ctrl+shift+g': () => selectedElementId && ungroupElement(selectedElementId),
+      'ctrl+d': () => {
+        e.preventDefault();
+        selectedElementId && duplicateElement(selectedElementId);
+      },
+      'ctrl+a': () => {
+        e.preventDefault();
+        const currentPage = currentCard.pages[currentCard.currentPageIndex];
+        if (currentPage) {
+          // 标记当前页所有元素为 selected
+          currentPage.elements.forEach(el => {
+            updateElement(el.id, { selected: true } as any);
+          });
+        }
+      },
     };
 
     const handler = shortcutMap[shortcut];
@@ -87,7 +114,9 @@ export const useKeyboardShortcuts = () => {
     selectElement,
     groupElements,
     ungroupElement,
+    duplicateElement,
     currentCard,
+    updateElement,
   ]);
 
   useEffect(() => {
@@ -113,6 +142,8 @@ export const SHORTCUTS_LIST = [
   { keys: ['Ctrl', 'Shift', 'V'], description: '切换可见性' },
   { keys: ['Ctrl', 'Shift', 'L'], description: '切换锁定' },
   { keys: ['Escape'], description: '取消选择' },
-  { keys: ['Ctrl', 'G'], description: '组合选中元素' },
+  { keys: ['Ctrl', 'G'], description: '组合/拆分' },
   { keys: ['Ctrl', 'Shift', 'G'], description: '拆分组合' },
+  { keys: ['Ctrl', 'D'], description: '复制元素' },
+  { keys: ['Ctrl', 'A'], description: '全选元素' },
 ];

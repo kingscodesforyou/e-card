@@ -167,8 +167,8 @@ export function LayersPanel() {
 
     if (finalDisplayIndex === 0) {
       newZIndex = currentMaxZIndex + 1;
-    } else if (finalDisplayIndex >= displayElements.length) {
-      newZIndex = currentMinZIndex - 1;
+	    } else if (finalDisplayIndex >= displayElements.length) {
+	      newZIndex = Math.max(currentMinZIndex - 1, 1);
     } else {
       const targetDisplayElement = displayElements[finalDisplayIndex];
       const prevDisplayElement = displayElements[finalDisplayIndex - 1];

@@ -801,6 +801,41 @@ export const admin = {
 };
 
 // =====================================================
+// 字体管理 - 从本地 API 加载
+// =====================================================
+
+export const fonts = {
+  getAll: async (category?: string) => {
+    if (isMockMode) {
+      return { data: [], error: null };
+    }
+
+    if (useLocalApi) {
+      try {
+        const url = category && category !== 'all'
+          ? `/api/fonts?category=${encodeURIComponent(category)}`
+          : '/api/fonts';
+        const data = await apiRequest(url);
+        return { data, error: null };
+      } catch (error: any) {
+        return { data: null, error: { message: error.message } };
+      }
+    }
+
+    return { data: [], error: null };
+  },
+
+  getById: async (id: string) => {
+    try {
+      const data = await apiRequest(`/api/fonts/${id}`);
+      return { data, error: null };
+    } catch (error: any) {
+      return { data: null, error: { message: error.message } };
+    }
+  },
+};
+
+// =====================================================
 // 短信验证码 - 需要配置本地 API 或 Supabase
 // =====================================================
 

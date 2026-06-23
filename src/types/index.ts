@@ -20,14 +20,22 @@ export interface CardElement {
     animation?: string;
     animationDuration?: number;
     animationDelay?: number;
+    animationIterationCount?: string | number;
     fontWeight?: string;
-    textAlign?: string;
+    fontStyle?: 'normal' | 'italic';
+    textDecoration?: 'none' | 'underline' | 'line-through';
+    textAlign?: 'left' | 'center' | 'right' | 'justify';
+    lineHeight?: number | string;
+    letterSpacing?: number | string;
     backgroundColor?: string;
     borderRadius?: number;
     borderWidth?: number;
     borderColor?: string;
+    borderStyle?: 'none' | 'solid' | 'dashed' | 'dotted' | 'double';
     textShadow?: string;
     boxShadow?: string;
+    // 形状专属：通过 CSS 三角形技巧或 clip-path 实现的形状外观
+    [key: string]: unknown;
     gradient?: {
       type: 'linear' | 'radial';
       colors: string[];

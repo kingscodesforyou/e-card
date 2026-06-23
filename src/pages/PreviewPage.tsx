@@ -3,6 +3,7 @@ import { ArrowLeft, Volume2, VolumeX, Download, Link, Mail, ChevronLeft, Chevron
 import { useNavigate } from 'react-router-dom';
 import { useEditorStore } from '../store';
 import { CardElement } from '../types';
+import { getElementVisualStyle } from '../lib/elementStyle';
 
 const PreviewPage = () => {
   const navigate = useNavigate();
@@ -71,7 +72,7 @@ const PreviewPage = () => {
 
   // 渲染页面元素
   const renderElement = (element: CardElement) => {
-    const style: React.CSSProperties = {
+    const layoutStyle: React.CSSProperties = {
       position: 'absolute',
       left: `${element.position.x}%`,
       top: `${element.position.y}%`,
@@ -79,25 +80,12 @@ const PreviewPage = () => {
       height: element.size ? `${element.size.height}%` : 'auto',
       transform: element.rotation ? `rotate(${element.rotation}deg)` : undefined,
       zIndex: element.zIndex || 1,
-      // 仅保留 CSSProperties 支持的字段
-      fontSize: element.style.fontSize,
-      fontFamily: element.style.fontFamily,
-      color: element.style.color,
-      opacity: element.style.opacity,
-      fontWeight: element.style.fontWeight as any,
-      textAlign: element.style.textAlign as any,
-      backgroundColor: element.style.backgroundColor,
-      borderRadius: element.style.borderRadius,
-      borderWidth: element.style.borderWidth,
-      borderColor: element.style.borderColor,
-      animation: element.style.animation,
-      animationDuration: typeof element.style.animationDuration === 'number' ? `${element.style.animationDuration}ms` : undefined,
-      animationDelay: typeof element.style.animationDelay === 'number' ? `${element.style.animationDelay}ms` : undefined,
     };
+    const style = getElementVisualStyle(element, layoutStyle);
 
     if (element.type === 'text') {
       return (
-        <div key={element.id} style={style}>
+        <div key={element.id} style={style} className={element.style.fontStyle === 'italic' ? 'italic' : ''}>
           {element.content}
         </div>
       );

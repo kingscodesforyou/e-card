@@ -1,9 +1,10 @@
-import { Type, ImageIcon, Sparkles, Trash2, Square, Circle as CircleIcon, Undo2, Redo2, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ChevronsLeftRight, ChevronsUpDown, Triangle, Minus, ArrowRight as ArrowRightIcon, Star } from 'lucide-react';
+import { Type, ImageIcon, Sparkles, Trash2, Square, Circle as CircleIcon, Undo2, Redo2, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ChevronsLeftRight, ChevronsUpDown, Triangle, Minus, ArrowRight as ArrowRightIcon, Star, Copy, Group, Ungroup, Layers } from 'lucide-react';
 import { useState } from 'react';
 import { useEditorStore } from '../../store';
+import { SHAPE_CONTENT } from '../../lib/elementStyle';
 
 const Toolbar = () => {
-  const { selectedElementId, deleteElement, currentCard, updateElement, undo, redo, canUndo, canRedo } = useEditorStore();
+  const { selectedElementId, deleteElement, currentCard, updateElement, undo, redo, canUndo, canRedo, bringToFront, sendToBack, bringForward, sendBackward, groupElements, ungroupElement } = useEditorStore();
   const [showShapeMenu, setShowShapeMenu] = useState(false);
 
   const handleAlign = (alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => {
@@ -50,6 +51,7 @@ const Toolbar = () => {
         fontFamily: 'Arial',
         color: '#333333',
         fontWeight: 'normal',
+        fontStyle: 'normal',
         textAlign: 'center',
       },
     });
@@ -186,7 +188,7 @@ const Toolbar = () => {
     const config = shapeConfigs[shape];
     useEditorStore.getState().addElement({
       type: 'shape',
-      content: shape,
+      content: SHAPE_CONTENT[shape],
       position: { x: 35, y: 35 },
       size: config.size,
       style: config.style as any,
@@ -400,6 +402,123 @@ const Toolbar = () => {
               <ArrowRight className="w-3 h-3" />
             </button>
           </div>
+        </div>
+
+        {/* 图层与组合操作 */}
+        <div className="flex items-center gap-1 pr-3 border-r border-gray-200">
+          <div className="flex flex-col gap-0.5">
+            <button
+              onClick={() => selectedElementId && bringToFront(selectedElementId)}
+              disabled={!selectedElementId}
+              className={`p-2 rounded-lg transition-all ${
+                selectedElementId
+                  ? 'hover:bg-indigo-50 text-gray-600 hover:text-indigo-600'
+                  : 'text-gray-300 cursor-not-allowed'
+              }`}
+              title="置顶 (Ctrl+Shift+])"
+            >
+              <Layers className="w-3 h-3" />
+            </button>
+            <button
+              onClick={() => selectedElementId && sendToBack(selectedElementId)}
+              disabled={!selectedElementId}
+              className={`p-2 rounded-lg transition-all ${
+                selectedElementId
+                  ? 'hover:bg-indigo-50 text-gray-600 hover:text-indigo-600'
+                  : 'text-gray-300 cursor-not-allowed'
+              }`}
+              title="置底 (Ctrl+Shift+[)"
+            >
+              <Layers className="w-3 h-3 rotate-180" />
+            </button>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <button
+              onClick={() => selectedElementId && bringForward(selectedElementId)}
+              disabled={!selectedElementId}
+              className={`p-2 rounded-lg transition-all ${
+                selectedElementId
+                  ? 'hover:bg-indigo-50 text-gray-600 hover:text-indigo-600'
+                  : 'text-gray-300 cursor-not-allowed'
+              }`}
+              title="上移一层 (Ctrl+])"
+            >
+              <ChevronsUpDown className="w-3 h-3" />
+            </button>
+            <button
+              onClick={() => selectedElementId && sendBackward(selectedElementId)}
+              disabled={!selectedElementId}
+              className={`p-2 rounded-lg transition-all ${
+                selectedElementId
+                  ? 'hover:bg-indigo-50 text-gray-600 hover:text-indigo-600'
+                  : 'text-gray-300 cursor-not-allowed'
+              }`}
+              title="下移一层 (Ctrl+[)"
+            >
+              <ChevronsUpDown className="w-3 h-3 rotate-180" />
+            </button>
+          </div>
+          <button
+            onClick={() => {
+              if (!selectedElementId) return;
+              const currentPage = currentCard.pages[currentCard.currentPageIndex];
+              if (!currentPage) return;
+              const selected = currentPage.elements.find(el => el.id === selectedElementId);
+              if (selected?.type === 'group') {
+                ungroupElement(selectedElementId);
+              } else {
+                const multiSelected = currentPage.elements.filter(el => el.selected);
+                if (multiSelected.length >= 2) {
+                  groupElements(multiSelected.map(el => el.id));
+                }
+              }
+            }}
+            disabled={(() => {
+              if (!selectedElementId) return true;
+              const currentPage = currentCard.pages[currentCard.currentPageIndex];
+              if (!currentPage) return true;
+              const selected = currentPage.elements.find(el => el.id === selectedElementId);
+              if (selected?.type === 'group') return false;
+              const count = currentPage.elements.filter(el => el.selected).length;
+              return count < 2;
+            })()}
+            className={`p-3 rounded-xl transition-all ${
+              selectedElementId
+                ? 'hover:bg-orange-50 text-gray-600 hover:text-orange-600'
+                : 'text-gray-300 cursor-not-allowed'
+            }`}
+            title={(() => {
+              const currentPage = currentCard.pages[currentCard.currentPageIndex];
+              const selected = currentPage?.elements.find(el => el.id === selectedElementId);
+              if (selected?.type === 'group') return '拆分组合 (Ctrl+Shift+G)';
+              const count = currentPage?.elements.filter(el => el.selected).length || 0;
+              return count >= 2 ? `组合选中的 ${count} 个元素 (Ctrl+G)` : '组合选中元素 (Ctrl+G)';
+            })()}
+          >
+            <Group className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => {
+              if (!selectedElementId) return;
+              const currentPage = currentCard.pages[currentCard.currentPageIndex];
+              const el = currentPage?.elements.find(e => e.id === selectedElementId);
+              if (!el) return;
+              useEditorStore.getState().addElement({
+                ...el,
+                position: { x: el.position.x + 3, y: el.position.y + 3 },
+                selected: false,
+              });
+            }}
+            disabled={!selectedElementId}
+            className={`p-3 rounded-xl transition-all ${
+              selectedElementId
+                ? 'hover:bg-green-50 text-gray-600 hover:text-green-600'
+                : 'text-gray-300 cursor-not-allowed'
+            }`}
+            title="复制元素 (Ctrl+D)"
+          >
+            <Copy className="w-5 h-5" />
+          </button>
         </div>
 
         {/* 删除 */}

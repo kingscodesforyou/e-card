@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { X, ChevronDown, ChevronRight, Lock, Unlock, HelpCircle, RotateCcw, Crop, Wand2, ImageIcon, Type, Sparkles, Link, Move } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, ChevronDown, ChevronRight, Lock, Unlock, HelpCircle, RotateCcw, Crop, Wand2, ImageIcon, Type, Sparkles, Link, Move, Search } from 'lucide-react';
 import { useEditorStore } from '../../store';
+import { getFontDatabase, FONT_CATEGORIES, searchFonts, loadFontDatabase, type FontInfo, type FontCategory } from '../../lib/fonts';
 
 const presetColors = ['#FFFFFF', '#FF0000', '#FFA500', '#FFFF00', '#00FF00', '#0000FF', '#87CEEB', '#800080', '#808080', '#000000'];
 
@@ -34,7 +35,14 @@ const PropertyPanel = () => {
     size: false,
   });
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showFontPicker, setShowFontPicker] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
+
+  // 加载字体数据库
+  useEffect(() => {
+    loadFontDatabase();
+  }, []);
 
   const currentPage = currentCard.pages[currentCard.currentPageIndex];
   const selectedElement = currentPage?.elements.find((el) => el.id === selectedElementId);
@@ -423,23 +431,52 @@ const PropertyPanel = () => {
       );
     }
 
-    if (selectedElement.type === 'text') {
-      return (
-        <div className="space-y-4">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium text-gray-700">字体样式</label>
-              <button className="text-sm text-blue-600 hover:text-blue-700">更多字体 &gt;</button>
-            </div>
-            <select className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-2">
-              <option>字语飞扬行书</option>
-              <option>宋体</option>
-              <option>黑体</option>
-              <option>楷体</option>
-            </select>
+	    if (selectedElement.type === 'text') {
+	      return (
+	        <div className="space-y-4">
+	          <div>
+	            <label className="block text-sm font-medium text-gray-700 mb-2">文字内容</label>
+	            <textarea
+	              value={selectedElement.content}
+	              onChange={(e) => updateElement(selectedElementId, { content: e.target.value })}
+	              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+	              rows={3}
+	            />
+	          </div>
+	          <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-gray-700">字体样式</label>
+                <button
+                  onClick={() => { loadFontDatabase().then(() => setShowFontPicker(true)); }}
+                  className="text-sm text-blue-600 hover:text-blue-700"
+                >
+                  更多字体 &gt;
+                </button>
+              </div>
+              <select
+                value={selectedElement.style.fontFamily || 'Arial'}
+                onChange={(e) => updateElement(selectedElementId, {
+                  style: { ...selectedElement.style, fontFamily: e.target.value },
+                })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-2"
+              >
+                {getFontDatabase().map((font) => (
+                  <option key={font.family} value={font.family}>
+                    {font.displayName}
+                  </option>
+                ))}
+              </select>
             <div className="flex items-center gap-2">
               <label className="text-sm text-gray-600">字号</label>
-              <button className="w-8 h-8 border border-gray-200 rounded flex items-center justify-center hover:bg-gray-50">
+              <button
+                onClick={() => {
+                  const current = selectedElement.style.fontSize || 24;
+                  updateElement(selectedElementId, {
+                    style: { ...selectedElement.style, fontSize: Math.min(120, current + 2) },
+                  });
+                }}
+                className="w-8 h-8 border border-gray-200 rounded flex items-center justify-center hover:bg-gray-50"
+              >
                 <span className="text-lg font-bold">A⁺</span>
               </button>
               <input
@@ -450,10 +487,23 @@ const PropertyPanel = () => {
                 onChange={(e) => updateElement(selectedElementId, { style: { ...selectedElement.style, fontSize: Number(e.target.value) } })}
                 className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm text-center"
               />
-              <button className="w-8 h-8 border border-gray-200 rounded flex items-center justify-center hover:bg-gray-50">
+              <button
+                onClick={() => {
+                  const current = selectedElement.style.fontSize || 24;
+                  updateElement(selectedElementId, {
+                    style: { ...selectedElement.style, fontSize: Math.max(12, current - 2) },
+                  });
+                }}
+                className="w-8 h-8 border border-gray-200 rounded flex items-center justify-center hover:bg-gray-50"
+              >
                 <span className="text-lg font-bold">A⁻</span>
               </button>
-              <div className="w-10 h-10 border border-gray-200 rounded" style={{ backgroundColor: selectedElement.style.color || '#FFD700' }} />
+              <button
+                onClick={() => setShowColorPicker(true)}
+                className="w-10 h-10 border border-gray-200 rounded"
+                style={{ backgroundColor: selectedElement.style.color || '#FFD700' }}
+                title="文字颜色"
+              />
               <button className="w-8 h-8 border border-gray-200 rounded flex items-center justify-center hover:bg-gray-50">
                 <Sparkles className="w-4 h-4" />
               </button>
@@ -461,39 +511,138 @@ const PropertyPanel = () => {
           </div>
 
           <div className="flex gap-1">
-            {['标题1', '标题2', '标题3', '正文'].map((style, index) => (
+            {[
+              { label: '标题1', fontSize: 32, fontWeight: 'bold' },
+              { label: '标题2', fontSize: 24, fontWeight: 'bold' },
+              { label: '标题3', fontSize: 18, fontWeight: '600' },
+              { label: '正文', fontSize: 14, fontWeight: 'normal' },
+            ].map((preset, index) => (
               <button
                 key={index}
-                className={`flex-1 py-2 px-3 rounded-lg text-sm ${index === 0 ? 'bg-blue-500 text-white' : 'border border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                onClick={() => updateElement(selectedElementId, {
+                  style: { ...selectedElement.style, fontSize: preset.fontSize, fontWeight: preset.fontWeight },
+                })}
+                className={`flex-1 py-2 px-3 rounded-lg text-sm ${
+                  selectedElement.style.fontSize === preset.fontSize ? 'bg-blue-500 text-white' : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
+                }`}
               >
-                {style}
+                {preset.label}
               </button>
             ))}
           </div>
 
           <div className="space-y-1">
+            {/* 第一行：B / I / U / S / 对齐 / 间距 / 字色 */}
             <div className="flex gap-1">
-              {['B', 'I', 'U', 'S', 'align', 'spacing', 'fill'].map((btn, index) => (
-                <button key={index} className="flex-1 h-8 border border-gray-200 rounded flex items-center justify-center hover:bg-gray-50">
-                  {btn === 'B' && <span className="font-bold">B</span>}
-                  {btn === 'I' && <span className="italic">I</span>}
-                  {btn === 'U' && <span className="underline">U</span>}
-                  {btn === 'S' && <span className="line-through">S</span>}
-                  {btn === 'align' && <span className="text-xs">⊜</span>}
-                  {btn === 'spacing' && <span className="text-xs">A A</span>}
-                  {btn === 'fill' && <span className="text-xs">AB</span>}
-                </button>
-              ))}
-            </div>
-            <div className="flex gap-1">
-              {['indent', 'sub', 'super', 'edit'].map((btn, index) => (
-                <button key={index} className="flex-1 h-8 border border-gray-200 rounded flex items-center justify-center hover:bg-gray-50">
-                  {btn === 'indent' && <span className="text-xs">¶</span>}
-                  {btn === 'sub' && <span className="text-xs">Aₓ</span>}
-                  {btn === 'super' && <span className="text-xs">Aˣ</span>}
-                  {btn === 'edit' && <span className="text-xs">✏</span>}
-                </button>
-              ))}
+              <button
+                onClick={() => updateElement(selectedElementId, {
+                  style: {
+                    ...selectedElement.style,
+                    fontWeight: selectedElement.style.fontWeight === 'bold' ? 'normal' : 'bold',
+                  },
+                })}
+                className={`flex-1 h-8 rounded flex items-center justify-center transition-colors ${
+                  selectedElement.style.fontWeight === 'bold'
+                    ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                    : 'border border-gray-200 hover:bg-gray-50 text-gray-600'
+                }`}
+                title="粗体"
+              >
+                <span className="font-bold">B</span>
+              </button>
+              <button
+                onClick={() => updateElement(selectedElementId, {
+                  style: {
+                    ...selectedElement.style,
+                    fontStyle: selectedElement.style.fontStyle === 'italic' ? 'normal' : 'italic',
+                  },
+                })}
+                className={`flex-1 h-8 rounded flex items-center justify-center transition-colors ${
+                  (selectedElement.style.fontStyle || 'normal') === 'italic'
+                    ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                    : 'border border-gray-200 hover:bg-gray-50 text-gray-600'
+                }`}
+                title="斜体"
+              >
+                <span className="italic">I</span>
+              </button>
+              <button
+                onClick={() => updateElement(selectedElementId, {
+                  style: {
+                    ...selectedElement.style,
+                    textDecoration: selectedElement.style.textDecoration === 'underline' ? 'none' : 'underline',
+                  },
+                })}
+                className={`flex-1 h-8 rounded flex items-center justify-center transition-colors ${
+                  selectedElement.style.textDecoration === 'underline'
+                    ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                    : 'border border-gray-200 hover:bg-gray-50 text-gray-600'
+                }`}
+                title="下划线"
+              >
+                <span className="underline">U</span>
+              </button>
+              <button
+                onClick={() => updateElement(selectedElementId, {
+                  style: {
+                    ...selectedElement.style,
+                    textDecoration: selectedElement.style.textDecoration === 'line-through' ? 'none' : 'line-through',
+                  },
+                })}
+                className={`flex-1 h-8 rounded flex items-center justify-center transition-colors ${
+                  selectedElement.style.textDecoration === 'line-through'
+                    ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                    : 'border border-gray-200 hover:bg-gray-50 text-gray-600'
+                }`}
+                title="删除线"
+              >
+                <span className="line-through">S</span>
+              </button>
+              <button
+                onClick={() => {
+                  const aligns: ('left' | 'center' | 'right' | 'justify')[] = ['left', 'center', 'right', 'justify'];
+                  const cur = selectedElement.style.textAlign || 'center';
+                  const next = aligns[(aligns.indexOf(cur) + 1) % aligns.length];
+                  updateElement(selectedElementId, { style: { ...selectedElement.style, textAlign: next } });
+                }}
+                className="flex-1 h-8 border border-gray-200 rounded flex items-center justify-center hover:bg-gray-50 text-gray-600"
+                title={`对齐：${selectedElement.style.textAlign || 'center'}`}
+              >
+                <span className="text-xs font-semibold">
+                  {selectedElement.style.textAlign === 'left' && '左'}
+                  {(selectedElement.style.textAlign === 'center' || !selectedElement.style.textAlign) && '中'}
+                  {selectedElement.style.textAlign === 'right' && '右'}
+                  {selectedElement.style.textAlign === 'justify' && '齐'}
+                </span>
+              </button>
+              <button
+                onClick={() => updateElement(selectedElementId, {
+                  style: {
+                    ...selectedElement.style,
+                    letterSpacing: typeof selectedElement.style.letterSpacing === 'number'
+                      ? (selectedElement.style.letterSpacing as number) === 0 ? 2 : 0
+                      : 2,
+                  },
+                })}
+                className={`flex-1 h-8 border rounded flex items-center justify-center transition-colors ${
+                  selectedElement.style.letterSpacing && selectedElement.style.letterSpacing !== 0
+                    ? 'bg-blue-100 text-blue-700 border-blue-300'
+                    : 'border-gray-200 hover:bg-gray-50 text-gray-600'
+                }`}
+                title="字间距"
+              >
+                <span className="text-xs font-medium">A A</span>
+              </button>
+              <button
+                onClick={() => setShowColorPicker(true)}
+                className="flex-1 h-8 border border-gray-200 rounded flex items-center justify-center hover:bg-gray-50"
+                title="文字颜色"
+              >
+                <span
+                  className="w-3.5 h-3.5 rounded-sm border border-gray-300"
+                  style={{ backgroundColor: selectedElement.style.color || '#333333' }}
+                />
+              </button>
             </div>
           </div>
 
@@ -730,6 +879,235 @@ const PropertyPanel = () => {
       );
     }
 
+    // 形状 / 图标 / 组合元素的属性面板
+    if (selectedElement.type === 'shape' || selectedElement.type === 'icon' || selectedElement.type === 'group') {
+      const isShape = selectedElement.type === 'shape';
+      const isIcon = selectedElement.type === 'icon';
+
+      return (
+        <div className="space-y-4">
+          {isIcon && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">图标内容</label>
+              <div className="grid grid-cols-8 gap-1">
+                {['⭐', '❤️', '🎈', '🎂', '🎁', '🌹', '🎄', '🎉', '🍀', '👑', '💍', '🎊', '✨', '🌟', '💝', '🎀'].map((emoji) => (
+                  <button
+                    key={emoji}
+                    onClick={() => updateElement(selectedElementId, { content: emoji })}
+                    className={`aspect-square text-xl rounded hover:bg-gray-100 ${
+                      selectedElement.content === emoji ? 'bg-blue-50 ring-1 ring-blue-300' : ''
+                    }`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {isShape && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">填充颜色</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={(selectedElement.style.backgroundColor as string) || '#8B5CF6'}
+                    onChange={(e) => updateElement(selectedElementId, {
+                      style: { ...selectedElement.style, backgroundColor: e.target.value },
+                    })}
+                    className="w-10 h-10 rounded cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={(selectedElement.style.backgroundColor as string) || '#8B5CF6'}
+                    onChange={(e) => updateElement(selectedElementId, {
+                      style: { ...selectedElement.style, backgroundColor: e.target.value },
+                    })}
+                    className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                    placeholder="#8B5CF6"
+                  />
+                </div>
+                <div className="flex gap-1 mt-2">
+                  {['#8B5CF6', '#EC4899', '#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#000000', '#FFFFFF'].map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => updateElement(selectedElementId, {
+                        style: { ...selectedElement.style, backgroundColor: c },
+                      })}
+                      className="w-6 h-6 rounded border border-gray-200 hover:scale-110 transition-transform"
+                      style={{ backgroundColor: c }}
+                      title={c}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">圆角</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min="0"
+                    max="50"
+                    value={(selectedElement.style.borderRadius as number) || 0}
+                    onChange={(e) => updateElement(selectedElementId, {
+                      style: { ...selectedElement.style, borderRadius: Number(e.target.value) },
+                    })}
+                    className="flex-1"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    max="50"
+                    value={(selectedElement.style.borderRadius as number) || 0}
+                    onChange={(e) => updateElement(selectedElementId, {
+                      style: { ...selectedElement.style, borderRadius: Number(e.target.value) },
+                    })}
+                    className="w-16 px-2 py-1 border border-gray-200 rounded text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">边框</label>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={(selectedElement.style.borderColor as string) || '#000000'}
+                      onChange={(e) => updateElement(selectedElementId, {
+                        style: { ...selectedElement.style, borderColor: e.target.value },
+                      })}
+                      className="w-10 h-8 rounded cursor-pointer"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      max="20"
+                      value={(selectedElement.style.borderWidth as number) || 0}
+                      onChange={(e) => updateElement(selectedElementId, {
+                        style: { ...selectedElement.style, borderWidth: Number(e.target.value) },
+                      })}
+                      className="flex-1 px-2 py-1 border border-gray-200 rounded text-sm"
+                      placeholder="边框粗细"
+                    />
+                    <select
+                      value={(selectedElement.style.borderStyle as string) || 'solid'}
+                      onChange={(e) => updateElement(selectedElementId, {
+                        style: { ...selectedElement.style, borderStyle: e.target.value as any },
+                      })}
+                      className="px-2 py-1 border border-gray-200 rounded text-sm"
+                    >
+                      <option value="solid">实线</option>
+                      <option value="dashed">虚线</option>
+                      <option value="dotted">点线</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {isIcon && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">图标颜色</label>
+              <input
+                type="color"
+                value={(selectedElement.style.color as string) || '#F59E0B'}
+                onChange={(e) => updateElement(selectedElementId, {
+                  style: { ...selectedElement.style, color: e.target.value },
+                })}
+                className="w-full h-10 rounded-lg cursor-pointer"
+              />
+            </div>
+          )}
+
+          {selectedElement.type === 'group' && (
+            <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
+              <p>组合元素 ({selectedElement.children?.length || 0} 个子元素)</p>
+              <p className="text-xs text-gray-500 mt-1">使用 Ctrl+Shift+G 或工具栏拆分按钮可拆分</p>
+            </div>
+          )}
+
+          {/* 透明度 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">透明度</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={(selectedElement.style.opacity || 1) * 100}
+                onChange={(e) => updateElement(selectedElementId, {
+                  style: { ...selectedElement.style, opacity: Number(e.target.value) / 100 },
+                })}
+                className="flex-1"
+              />
+              <span className="text-sm text-gray-600 w-12 text-right">{Math.round((selectedElement.style.opacity || 1) * 100)}%</span>
+            </div>
+          </div>
+
+          {/* 尺寸与位置 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">尺寸与位置</label>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-gray-500">宽</label>
+                <input
+                  type="number"
+                  value={selectedElement.size?.width || 0}
+                  onChange={(e) => updateElement(selectedElementId, { size: { ...selectedElement.size, width: Number(e.target.value) } })}
+                  className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500">高</label>
+                <input
+                  type="number"
+                  value={selectedElement.size?.height || 0}
+                  onChange={(e) => updateElement(selectedElementId, { size: { ...selectedElement.size, height: Number(e.target.value) } })}
+                  className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500">X</label>
+                <input
+                  type="number"
+                  value={selectedElement.position.x}
+                  onChange={(e) => updateElement(selectedElementId, { position: { ...selectedElement.position, x: Number(e.target.value) } })}
+                  className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500">Y</label>
+                <input
+                  type="number"
+                  value={selectedElement.position.y}
+                  onChange={(e) => updateElement(selectedElementId, { position: { ...selectedElement.position, y: Number(e.target.value) } })}
+                  className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+                />
+              </div>
+            </div>
+            <div className="mt-2">
+              <label className="block text-xs text-gray-500 mb-1">旋转</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="range"
+                  min="-180"
+                  max="180"
+                  value={selectedElement.rotation || 0}
+                  onChange={(e) => updateElement(selectedElementId, { rotation: Number(e.target.value) })}
+                  className="flex-1"
+                />
+                <span className="text-sm text-gray-600 w-12 text-right">{selectedElement.rotation || 0}°</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-4">
         <div>
@@ -778,7 +1156,7 @@ const PropertyPanel = () => {
           <label className="block text-sm font-medium text-gray-700 mb-2">对齐方式</label>
           <select
             value={selectedElement.style.textAlign || 'center'}
-            onChange={(e) => updateElement(selectedElementId, { style: { ...selectedElement.style, textAlign: e.target.value } })}
+            onChange={(e) => updateElement(selectedElementId, { style: { ...selectedElement.style, textAlign: e.target.value as 'left' | 'center' | 'right' | 'justify' } })}
             className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="left">左对齐</option>
@@ -865,6 +1243,31 @@ const PropertyPanel = () => {
   };
 
   const AnimationTab = () => {
+    // 动画类型 -> CSS animation 映射
+    const animationMap: Record<string, string> = {
+      'none': '',
+      '淡入': 'fadeIn',
+      '缩放': 'scaleIn',
+      '旋转': 'rotateIn',
+      '滑动': 'slideIn',
+      '弹跳': 'bounceIn',
+    };
+
+    const currentAnimationName = selectedElement?.style.animation || '';
+    // 反查当前动画对应的中文标签
+    let currentAnimLabel = '无';
+    for (const [label, css] of Object.entries(animationMap)) {
+      if (css && currentAnimationName.startsWith(css)) {
+        currentAnimLabel = label;
+        break;
+      }
+    }
+
+    const animDuration = selectedElement?.style.animationDuration ?? 1000;
+    const animDelay = selectedElement?.style.animationDelay ?? 0;
+    const animIteration = selectedElement?.style.animationIterationCount ?? 1;
+    const isLoop = animIteration === 'infinite' || (typeof animIteration === 'number' && animIteration > 10);
+
     return (
       <div className="space-y-4 p-4">
         {!selectedElement ? (
@@ -876,7 +1279,19 @@ const PropertyPanel = () => {
           <>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">动画类型</label>
-              <select className="w-full px-3 py-2 border border-gray-200 rounded-lg">
+              <select
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg"
+                value={currentAnimLabel}
+                onChange={(e) => {
+                  const css = animationMap[e.target.value] || '';
+                  updateElement(selectedElementId, {
+                    style: {
+                      ...selectedElement.style,
+                      animation: css,
+                    },
+                  });
+                }}
+              >
                 <option>无</option>
                 <option>淡入</option>
                 <option>缩放</option>
@@ -888,32 +1303,92 @@ const PropertyPanel = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">动画时长</label>
               <div className="flex items-center gap-2">
-                <input type="range" min="0.1" max="5" step="0.1" defaultValue="1" className="flex-1" />
-                <span className="text-sm text-gray-600">1秒</span>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="5"
+                  step="0.1"
+                  value={animDuration / 1000}
+                  className="flex-1"
+                  onChange={(e) =>
+                    updateElement(selectedElementId, {
+                      style: { ...selectedElement.style, animationDuration: Number(e.target.value) * 1000 },
+                    })
+                  }
+                />
+                <span className="text-sm text-gray-600 w-8 text-right">{(animDuration / 1000).toFixed(1)}秒</span>
               </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">延迟时间</label>
               <div className="flex items-center gap-2">
-                <input type="range" min="0" max="5" step="0.1" defaultValue="0" className="flex-1" />
-                <span className="text-sm text-gray-600">0秒</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="5"
+                  step="0.1"
+                  value={animDelay / 1000}
+                  className="flex-1"
+                  onChange={(e) =>
+                    updateElement(selectedElementId, {
+                      style: { ...selectedElement.style, animationDelay: Number(e.target.value) * 1000 },
+                    })
+                  }
+                />
+                <span className="text-sm text-gray-600 w-8 text-right">{(animDelay / 1000).toFixed(1)}秒</span>
               </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">重复次数</label>
-              <select className="w-full px-3 py-2 border border-gray-200 rounded-lg">
-                <option>1次</option>
-                <option>2次</option>
-                <option>3次</option>
-                <option>无限</option>
+              <select
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg"
+                value={isLoop ? 'infinite' : String(animIteration)}
+                onChange={(e) =>
+                  updateElement(selectedElementId, {
+                    style: { ...selectedElement.style, animationIterationCount: e.target.value === 'infinite' ? 'infinite' : Number(e.target.value) },
+                  })
+                }
+              >
+                <option value="1">1次</option>
+                <option value="2">2次</option>
+                <option value="3">3次</option>
+                <option value="infinite">无限</option>
               </select>
             </div>
+            {/* 循环播放开关（仅作为 repeat 的快捷切换） */}
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">循环播放</span>
-              <button className="w-12 h-6 rounded-full bg-gray-200 relative">
-                <span className="absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow" />
+              <button
+                onClick={() =>
+                  updateElement(selectedElementId, {
+                    style: {
+                      ...selectedElement.style,
+                      animationIterationCount: isLoop ? 1 : 'infinite',
+                    },
+                  })
+                }
+                className={`w-12 h-6 rounded-full relative transition-colors ${isLoop ? 'bg-blue-500' : 'bg-gray-200'}`}
+              >
+                <span
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${isLoop ? 'right-1' : 'left-1'}`}
+                />
               </button>
             </div>
+            {/* 重播按钮（通过移除再重新赋值 animation 来触发重播） */}
+            {currentAnimationName && (
+              <button
+                onClick={() => {
+                  // 先清除动画触发 reflow，然后恢复
+                  updateElement(selectedElementId, { style: { ...selectedElement.style, animation: '' } });
+                  requestAnimationFrame(() => {
+                    updateElement(selectedElementId, { style: { ...selectedElement.style, animation: currentAnimationName } });
+                  });
+                }}
+                className="w-full py-2 border border-blue-200 rounded-lg text-sm text-blue-600 hover:bg-blue-50"
+              >
+                ▶ 预览动画
+              </button>
+            )}
           </>
         )}
       </div>
@@ -1044,6 +1519,149 @@ const PropertyPanel = () => {
     );
   };
 
+  const ColorPickerPopup = () => {
+    if (!selectedElement) return null;
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-2xl p-4 w-72 shadow-xl">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-medium text-gray-700">文字颜色</span>
+            <button
+              onClick={() => setShowColorPicker(false)}
+              className="p-1 hover:bg-gray-100 rounded transition-colors"
+              title="关闭"
+            >
+              <X className="w-4 h-4 text-gray-500" />
+            </button>
+          </div>
+          <input
+            type="color"
+            value={selectedElement.style.color || '#333333'}
+            onChange={(e) => {
+              updateElement(selectedElementId, {
+                style: { ...selectedElement.style, color: e.target.value },
+              });
+            }}
+            className="w-full h-10 rounded cursor-pointer mb-3"
+          />
+          <div className="flex gap-1 flex-wrap">
+            {presetColors.map((color) => (
+              <button
+                key={color}
+                onClick={() => {
+                  updateElement(selectedElementId, {
+                    style: { ...selectedElement.style, color },
+                  });
+                  setShowColorPicker(false);
+                }}
+                className="w-7 h-7 rounded border border-gray-200 hover:scale-110 transition-transform"
+                style={{ backgroundColor: color }}
+                title={color}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const FontPickerPopup = () => {
+    const [search, setSearch] = useState('');
+    const [activeCategory, setActiveCategory] = useState<FontCategory>('all');
+    const [fontsReady, setFontsReady] = useState(getFontDatabase().length > 0);
+
+    // 如果字体尚未加载则触发加载
+    useEffect(() => {
+      if (!fontsReady) {
+        loadFontDatabase().then(() => setFontsReady(true));
+      }
+    }, []);
+
+    const filteredFonts = fontsReady ? searchFonts(search, activeCategory) : [];
+    const currentFont = selectedElement?.style.fontFamily || '';
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-2xl p-4 w-96 max-h-[80vh] shadow-xl flex flex-col">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-medium text-gray-700">选择字体</span>
+            <button
+              onClick={() => setShowFontPicker(false)}
+              className="p-1 hover:bg-gray-100 rounded transition-colors"
+              title="关闭"
+            >
+              <X className="w-4 h-4 text-gray-500" />
+            </button>
+          </div>
+
+          {/* Search */}
+          <div className="relative mb-3">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="搜索字体..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* Categories */}
+          <div className="flex gap-1 mb-3 flex-wrap">
+            {FONT_CATEGORIES.map((cat) => (
+              <button
+                key={cat.key}
+                onClick={() => setActiveCategory(cat.key)}
+                className={`px-3 py-1 rounded text-xs transition-colors ${
+                  activeCategory === cat.key
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Font list */}
+          <div className="flex-1 overflow-y-auto space-y-1 min-h-0">
+            {!fontsReady ? (
+              <div className="text-center text-sm text-gray-400 py-8">加载字体中...</div>
+            ) : filteredFonts.length === 0 ? (
+              <div className="text-center text-sm text-gray-400 py-8">未找到匹配的字体</div>
+            ) : (
+              filteredFonts.map((font) => (
+                <button
+                  key={font.family}
+                  onClick={() => {
+                    updateElement(selectedElementId, {
+                      style: { ...selectedElement.style, fontFamily: font.family },
+                    });
+                    setShowFontPicker(false);
+                  }}
+                  className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors ${
+                    currentFont === font.family
+                      ? 'bg-blue-50 border border-blue-200'
+                      : 'hover:bg-gray-50 border border-transparent'
+                  }`}
+                  style={{ fontFamily: font.family }}
+                >
+                  <div className="text-base">{font.displayName}</div>
+                  <div className="text-xs text-gray-400 mt-0.5">
+                    {font.family}
+                    {' · '}
+                    {FONT_CATEGORIES.find((c) => c.key === font.category)?.label || font.category}
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="bg-white rounded-2xl shadow-sm h-full flex flex-col">
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
@@ -1078,12 +1696,14 @@ const PropertyPanel = () => {
       </div>
 
       <div className="flex-1 overflow-y-auto max-h-[700px] p-4">
-        {activeTab === 'style' && <StyleTab />}
-        {activeTab === 'animation' && <AnimationTab />}
-        {activeTab === 'trigger' && <TriggerTab />}
+        {activeTab === 'style' && StyleTab()}
+        {activeTab === 'animation' && AnimationTab()}
+        {activeTab === 'trigger' && TriggerTab()}
       </div>
 
       {showAdvancedSettings && <AdvancedSettings />}
+      {showColorPicker && <ColorPickerPopup />}
+      {showFontPicker && <FontPickerPopup />}
     </div>
   );
 };
