@@ -93,18 +93,25 @@ describe('Editor Store', () => {
 
     it('should send element to back', () => {
       const store = useEditorStore.getState();
-      
+
       store.addElement({ type: 'text', content: 'First', position: { x: 10, y: 10 }, style: {} });
       store.addElement({ type: 'text', content: 'Second', position: { x: 20, y: 20 }, style: {} });
-      
+
       const stateAfterAdd = useEditorStore.getState();
+      const firstElement = stateAfterAdd.currentCard.pages[0].elements[0];
       const secondElement = stateAfterAdd.currentCard.pages[0].elements[1];
-      
+
       store.sendToBack(secondElement.id);
-      
+
       const stateAfterSend = useEditorStore.getState();
-      const updatedElements = [...stateAfterSend.currentCard.pages[0].elements].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
-      expect(updatedElements[0].id).toBe(secondElement.id);
+      const updatedFirst = stateAfterSend.currentCard.pages[0].elements.find(el => el.id === firstElement.id);
+      const updatedSecond = stateAfterSend.currentCard.pages[0].elements.find(el => el.id === secondElement.id);
+
+      // 确保所有元素的 zIndex >= 1（不会低于背景层）
+      expect((updatedFirst?.zIndex || 0)).toBeGreaterThanOrEqual(1);
+      expect((updatedSecond?.zIndex || 0)).toBeGreaterThanOrEqual(1);
+      // 被置底的元素应位于或低于原来的最底层
+      expect((updatedSecond?.zIndex || 0)).toBeLessThanOrEqual((updatedFirst?.zIndex || 0));
     });
 
     it('should toggle visibility', () => {
@@ -163,21 +170,26 @@ describe('Editor Store', () => {
 
     it('should send element backward', () => {
       const store = useEditorStore.getState();
-      
-      store.addElement({ type: 'text', content: 'A', position: { x: 10, y: 10 }, style: {} });
-      store.addElement({ type: 'text', content: 'B', position: { x: 20, y: 20 }, style: {} });
-      store.addElement({ type: 'text', content: 'C', position: { x: 30, y: 30 }, style: {} });
-      
+
+      // 用不同的 zIndex 创建三个元素
+      store.addElement({ type: 'text', content: 'A', position: { x: 10, y: 10 }, style: {}, zIndex: 1 });
+      store.addElement({ type: 'text', content: 'B', position: { x: 20, y: 20 }, style: {}, zIndex: 2 });
+      store.addElement({ type: 'text', content: 'C', position: { x: 30, y: 30 }, style: {}, zIndex: 3 });
+
       const stateAfterAdd = useEditorStore.getState();
-      const elementB = stateAfterAdd.currentCard.pages[0].elements[1];
-      const elementC = stateAfterAdd.currentCard.pages[0].elements[2];
-      
+      const elementB = stateAfterAdd.currentCard.pages[0].elements.find(el => el.content === 'B');
+      const elementC = stateAfterAdd.currentCard.pages[0].elements.find(el => el.content === 'C');
+
       store.sendBackward(elementC.id);
-      
+
       const stateAfterSend = useEditorStore.getState();
       const elementBUpdated = stateAfterSend.currentCard.pages[0].elements.find(el => el.id === elementB.id);
       const elementCUpdated = stateAfterSend.currentCard.pages[0].elements.find(el => el.id === elementC.id);
-      
+
+      // 确保所有元素的 zIndex >= 1（不会低于背景层）
+      expect((elementBUpdated?.zIndex || 0)).toBeGreaterThanOrEqual(1);
+      expect((elementCUpdated?.zIndex || 0)).toBeGreaterThanOrEqual(1);
+      // 下移后的元素应低于其上方的元素
       expect((elementCUpdated?.zIndex || 0)).toBeLessThan((elementBUpdated?.zIndex || 0));
     });
   });

@@ -59,6 +59,8 @@ interface EditorState {
   // 组合操作
   groupElements: (elementIds: string[]) => void;
   ungroupElement: (groupId: string) => void;
+  // 复制元素
+  duplicateElement: (id: string) => void;
   // 撤销/重做
   undo: () => void;
   redo: () => void;
@@ -67,6 +69,7 @@ interface EditorState {
   // 其他
   setPreviewMode: (mode: boolean) => void;
   clearEditor: () => void;
+  clearSelectedFlags: () => void;
 }
 
 interface TemplatesState {
@@ -244,7 +247,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
         const prevState = { ...state.currentCard };
         const currentPage = state.currentCard.pages[state.currentCard.currentPageIndex];
         if (!currentPage) return state;
-        const newElement = { ...element, id: generateId() };
+        const newElement = { ...element, zIndex: element.zIndex ?? 1, id: generateId() };
         const newPages = state.currentCard.pages.map((p, idx) =>
           idx === state.currentCard.currentPageIndex
             ? { ...p, elements: [...p.elements, newElement] }
@@ -299,77 +302,95 @@ export const useEditorStore = create<EditorState>((set, get) => {
         saveHistory('updateElement', prevState, nextState);
         return { currentCard: nextState };
       }),
-    // 置底
-    sendToBack: (elementId) =>
-      set((state) => {
-        const prevState = { ...state.currentCard };
-        const currentPage = state.currentCard.pages[state.currentCard.currentPageIndex];
-        if (!currentPage) return state;
-        const minZIndex = Math.min(...currentPage.elements.map((el) => el.zIndex || 0));
-        const newPages = state.currentCard.pages.map((p, idx) =>
-          idx === state.currentCard.currentPageIndex
-            ? {
-                ...p,
-                elements: p.elements.map((el) =>
-                  el.id === elementId ? { ...el, zIndex: minZIndex - 1 } : el
-                ),
-              }
-            : p
-        );
-        const nextState = { ...state.currentCard, pages: newPages };
-        saveHistory('updateElement', prevState, nextState);
-        return { currentCard: nextState };
-      }),
-    // 上移一层
-    bringForward: (elementId) =>
-      set((state) => {
-        const prevState = { ...state.currentCard };
-        const currentPage = state.currentCard.pages[state.currentCard.currentPageIndex];
-        if (!currentPage) return state;
-        const sortedElements = [...currentPage.elements].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
-        const targetIdx = sortedElements.findIndex((el) => el.id === elementId);
-        if (targetIdx === -1 || targetIdx >= sortedElements.length - 1) return state;
-        const aboveElement = sortedElements[targetIdx + 1];
-        const targetZIndex = (aboveElement.zIndex || 0) + 1;
-        const newPages = state.currentCard.pages.map((p, idx) =>
-          idx === state.currentCard.currentPageIndex
-            ? {
-                ...p,
-                elements: p.elements.map((el) =>
-                  el.id === elementId ? { ...el, zIndex: targetZIndex } : el
-                ),
-              }
-            : p
-        );
-        const nextState = { ...state.currentCard, pages: newPages };
-        saveHistory('updateElement', prevState, nextState);
-        return { currentCard: nextState };
-      }),
-    // 下移一层
-    sendBackward: (elementId) =>
-      set((state) => {
-        const prevState = { ...state.currentCard };
-        const currentPage = state.currentCard.pages[state.currentCard.currentPageIndex];
-        if (!currentPage) return state;
-        const sortedElements = [...currentPage.elements].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
-        const targetIdx = sortedElements.findIndex((el) => el.id === elementId);
-        if (targetIdx === -1 || targetIdx <= 0) return state;
-        const belowElement = sortedElements[targetIdx - 1];
-        const targetZIndex = (belowElement.zIndex || 0) - 1;
-        const newPages = state.currentCard.pages.map((p, idx) =>
-          idx === state.currentCard.currentPageIndex
-            ? {
-                ...p,
-                elements: p.elements.map((el) =>
-                  el.id === elementId ? { ...el, zIndex: targetZIndex } : el
-                ),
-              }
-            : p
-        );
-        const nextState = { ...state.currentCard, pages: newPages };
-        saveHistory('updateElement', prevState, nextState);
-        return { currentCard: nextState };
-      }),
+	    // 置底
+	    sendToBack: (elementId) =>
+	      set((state) => {
+	        const prevState = { ...state.currentCard };
+	        const currentPage = state.currentCard.pages[state.currentCard.currentPageIndex];
+	        if (!currentPage) return state;
+	        const minZIndex = Math.min(...currentPage.elements.map((el) => el.zIndex || 0));
+	        const newPages = state.currentCard.pages.map((p, idx) =>
+	          idx === state.currentCard.currentPageIndex
+	            ? {
+	                ...p,
+	                elements: p.elements.map((el) =>
+	                  el.id === elementId ? { ...el, zIndex: Math.max(minZIndex - 1, 1) } : el
+	                ),
+	              }
+	            : p
+	        );
+	        const nextState = { ...state.currentCard, pages: newPages };
+	        saveHistory('updateElement', prevState, nextState);
+	        return { currentCard: nextState };
+	      }),
+	    // 上移一层（与上面的元素交换 zIndex）
+	    bringForward: (elementId) =>
+	      set((state) => {
+	        const prevState = { ...state.currentCard };
+	        const currentPage = state.currentCard.pages[state.currentCard.currentPageIndex];
+	        if (!currentPage) return state;
+	        const sortedElements = [...currentPage.elements].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+	        const targetIdx = sortedElements.findIndex((el) => el.id === elementId);
+	        if (targetIdx === -1 || targetIdx >= sortedElements.length - 1) return state;
+	        const aboveElement = sortedElements[targetIdx + 1];
+	        const targetOldZIndex = sortedElements[targetIdx].zIndex ?? 0;
+	        const aboveOldZIndex = aboveElement.zIndex ?? 0;
+	        // 若 zIndex 相同则 target 需要 +1 才能在上方，否则交换
+	        const targetZIndex = aboveOldZIndex === targetOldZIndex ? aboveOldZIndex + 1 : aboveOldZIndex;
+	        const aboveNewZIndex = aboveOldZIndex === targetOldZIndex ? targetOldZIndex : targetOldZIndex;
+	        const newPages = state.currentCard.pages.map((p, idx) =>
+	          idx === state.currentCard.currentPageIndex
+	            ? {
+	                ...p,
+	                elements: p.elements.map((el) =>
+	                  el.id === elementId
+	                    ? { ...el, zIndex: targetZIndex }
+	                    : el.id === aboveElement.id
+	                      ? { ...el, zIndex: aboveNewZIndex }
+	                      : el
+	                ),
+	              }
+	            : p
+	        );
+	        const nextState = { ...state.currentCard, pages: newPages };
+	        saveHistory('updateElement', prevState, nextState);
+	        return { currentCard: nextState };
+	      }),
+	    // 下移一层（与下面的元素交换 zIndex）
+	    sendBackward: (elementId) =>
+	      set((state) => {
+	        const prevState = { ...state.currentCard };
+	        const currentPage = state.currentCard.pages[state.currentCard.currentPageIndex];
+	        if (!currentPage) return state;
+	        const sortedElements = [...currentPage.elements].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+	        const targetIdx = sortedElements.findIndex((el) => el.id === elementId);
+	        if (targetIdx === -1 || targetIdx <= 0) return state;
+	        const belowElement = sortedElements[targetIdx - 1];
+	        const targetOldZIndex = sortedElements[targetIdx].zIndex ?? 0;
+	        const belowOldZIndex = belowElement.zIndex ?? 0;
+	        // 若 zIndex 相同则 target 需要 -1 才能在下方，否则交换
+	        const targetZIndex = belowOldZIndex === targetOldZIndex
+	          ? Math.max(belowOldZIndex - 1, 1)
+	          : belowOldZIndex;
+	        const belowNewZIndex = belowOldZIndex === targetOldZIndex ? targetOldZIndex : targetOldZIndex;
+	        const newPages = state.currentCard.pages.map((p, idx) =>
+	          idx === state.currentCard.currentPageIndex
+	            ? {
+	                ...p,
+	                elements: p.elements.map((el) =>
+	                  el.id === elementId
+	                    ? { ...el, zIndex: targetZIndex }
+	                    : el.id === belowElement.id
+	                      ? { ...el, zIndex: belowNewZIndex }
+	                      : el
+	                ),
+	              }
+	            : p
+	        );
+	        const nextState = { ...state.currentCard, pages: newPages };
+	        saveHistory('updateElement', prevState, nextState);
+	        return { currentCard: nextState };
+	      }),
     // 切换可见性
     toggleVisibility: (elementId) =>
       set((state) => {
@@ -476,6 +497,34 @@ export const useEditorStore = create<EditorState>((set, get) => {
         saveHistory('updateElement', prevState, nextState);
         return { currentCard: nextState, selectedElementId: null };
       }),
+    // 复制元素到当前页（偏移3%避免重叠）
+    duplicateElement: (id) =>
+      set((state) => {
+        const prevState = { ...state.currentCard };
+        const currentPage = state.currentCard.pages[state.currentCard.currentPageIndex];
+        if (!currentPage) return state;
+
+        const source = currentPage.elements.find((el) => el.id === id);
+        if (!source) return state;
+
+        const copy: CardElement = {
+          ...JSON.parse(JSON.stringify(source)),
+          id: generateId(),
+          position: { x: (source.position.x + 3) % 100, y: (source.position.y + 3) % 100 },
+          selected: false,
+          zIndex: (source.zIndex || 0) + 1,
+        };
+
+        const newPages = state.currentCard.pages.map((p, idx) =>
+          idx === state.currentCard.currentPageIndex
+            ? { ...p, elements: [...p.elements, copy] }
+            : p
+        );
+
+        const nextState = { ...state.currentCard, pages: newPages };
+        saveHistory('addElement', prevState, nextState);
+        return { currentCard: nextState, selectedElementId: copy.id };
+      }),
     // 撤销
     undo: () =>
       set((state) => {
@@ -521,6 +570,19 @@ export const useEditorStore = create<EditorState>((set, get) => {
         isPreviewMode: false,
         history: [],
         historyIndex: -1,
+      }),
+    clearSelectedFlags: () =>
+      set((state) => {
+        const currentPage = state.currentCard.pages[state.currentCard.currentPageIndex];
+        if (!currentPage) return state;
+        const hasSelected = currentPage.elements.some((el) => el.selected);
+        if (!hasSelected) return state;
+        const newPages = state.currentCard.pages.map((p, idx) =>
+          idx === state.currentCard.currentPageIndex
+            ? { ...p, elements: p.elements.map((el) => ({ ...el, selected: false })) }
+            : p
+        );
+        return { currentCard: { ...state.currentCard, pages: newPages } };
       }),
   };
 });

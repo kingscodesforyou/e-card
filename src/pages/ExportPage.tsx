@@ -7,6 +7,8 @@ import { useUserStore } from '../store';
 import { cards } from '../utils/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { exportToPDF, copyToClipboard, generateShareLink, sendEmail } from '../utils/export';
+import { getElementVisualStyle, getShapeVisualStyle } from '../lib/elementStyle';
+import type { CardElement } from '../types';
 
 const ExportPage = () => {
   const navigate = useNavigate();
@@ -158,22 +160,28 @@ const ExportPage = () => {
                   }}
                 >
                   {page.elements.map((element) => {
+                    const scale = 0.75;
+                    const layoutStyle: React.CSSProperties = {
+                      position: 'absolute',
+                      left: `${element.position.x * scale}%`,
+                      top: `${element.position.y * scale}%`,
+                      width: element.size ? `${element.size.width * scale}%` : 'auto',
+                      height: element.size ? `${element.size.height * scale}%` : 'auto',
+                      transform: element.rotation ? `rotate(${element.rotation}deg)` : undefined,
+                    };
+                    const style = getElementVisualStyle(element, layoutStyle);
+
                     if (element.type === 'text') {
                       return (
                         <div
                           key={element.id}
                           style={{
-                            position: 'absolute',
-                            left: `${element.position.x * 0.75}%`,
-                            top: `${element.position.y * 0.75}%`,
-                            fontSize: `${(element.style.fontSize || 24) * 0.75}px`,
-                            fontFamily: element.style.fontFamily,
-                            color: element.style.color,
-                            fontWeight: element.style.fontWeight,
-                            textAlign: element.style.textAlign as React.CSSProperties['textAlign'],
+                            ...style,
+                            fontSize: `${(element.style.fontSize || 24) * scale}px`,
                             padding: '6px 12px',
-                            whiteSpace: 'nowrap',
+                            whiteSpace: 'pre-wrap',
                           }}
+                          className={element.style.fontStyle === 'italic' ? 'italic' : ''}
                         >
                           {element.content}
                         </div>
@@ -187,32 +195,43 @@ const ExportPage = () => {
                           src={element.content}
                           alt=""
                           style={{
-                            position: 'absolute',
-                            left: `${element.position.x * 0.75}%`,
-                            top: `${element.position.y * 0.75}%`,
-                            width: element.size ? `${element.size.width * 0.75}%` : '112px',
-                            height: element.size ? `${element.size.height * 0.75}%` : '112px',
+                            ...style,
                             objectFit: 'cover',
-                            borderRadius: '6px',
+                            borderRadius: element.style.borderRadius ? `${element.style.borderRadius * scale}%` : '6px',
                           }}
                         />
                       );
                     }
 
                     if (element.type === 'shape') {
+                      // 通过共享工具获取包含 clipPath/border 三角形等自定义属性的样式
+                      const shapeStyle = getShapeVisualStyle(element);
                       return (
                         <div
                           key={element.id}
                           style={{
-                            position: 'absolute',
-                            left: `${element.position.x * 0.75}%`,
-                            top: `${element.position.y * 0.75}%`,
-                            width: element.size ? `${element.size.width * 0.75}%` : '75px',
-                            height: element.size ? `${element.size.height * 0.75}%` : '75px',
-                            backgroundColor: element.style.backgroundColor || element.style.color,
-                            borderRadius: element.style.borderRadius ? `${element.style.borderRadius * 0.75}%` : '50%',
+                            ...style,
+                            ...shapeStyle,
+                            // 若未指定圆角则按 content 默认值
+                            borderRadius: style.borderRadius ?? (element.content === 'circle' ? '50%' : 0),
                           }}
                         />
+                      );
+                    }
+
+                    if (element.type === 'icon') {
+                      return (
+                        <div
+                          key={element.id}
+                          style={{
+                            ...style,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          {element.content}
+                        </div>
                       );
                     }
 

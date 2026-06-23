@@ -1,14 +1,22 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { Pool } from 'pg';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// 项目根目录（server 的父目录）
+const projectRoot = path.resolve(__dirname, '..');
 
 // 数据库连接
 const pool = new Pool({
@@ -22,6 +30,9 @@ const pool = new Pool({
 // 中间件
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
+
+// 静态文件 - 字体目录
+app.use('/fonts', express.static(path.join(projectRoot, 'public/fonts')));
 
 // JWT 配置
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
@@ -256,6 +267,45 @@ app.get('/api/templates/:id', async (req, res) => {
   } catch (error) {
     console.error('获取模板错误:', error);
     res.status(500).json({ error: '获取模板失败' });
+  }
+});
+
+// =====================================================
+// 字体相关 API
+// =====================================================
+
+// 获取所有可用字体
+app.get('/api/fonts', async (req, res) => {
+  try {
+    const { category } = req.query;
+    let query = 'SELECT * FROM fonts WHERE is_active = TRUE';
+    const params = [];
+
+    if (category && category !== 'all') {
+      query += ' AND category = $1';
+      params.push(category);
+    }
+
+    query += ' ORDER BY sort_order ASC';
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('获取字体错误:', error);
+    res.status(500).json({ error: '获取字体列表失败' });
+  }
+});
+
+// 获取单个字体
+app.get('/api/fonts/:id', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM fonts WHERE id = $1', [req.params.id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: '字体不存在' });
+    }
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('获取字体错误:', error);
+    res.status(500).json({ error: '获取字体失败' });
   }
 });
 
@@ -627,6 +677,91 @@ app.delete('/api/admin/templates/:id', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('删除模板错误:', error);
     res.status(500).json({ error: '删除模板失败' });
+  }
+});
+
+// =====================================================
+// 管理员字体管理
+// =====================================================
+
+// 创建字体
+app.post('/api/admin/fonts', requireAuth, async (req, res) => {
+  try {
+    if (!req.user.is_admin) {
+      return res.status(403).json({ error: '需要管理员权限' });
+    }
+
+    const { family, display_name, category, google_font_name, weights, sort_order } = req.body;
+
+    const result = await pool.query(
+      `INSERT INTO fonts (family, display_name, category, google_font_name, weights, sort_order)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [family, display_name, category, google_font_name || null, weights || '{400}', sort_order || 0]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('创建字体错误:', error);
+    res.status(500).json({ error: '创建字体失败' });
+  }
+});
+
+// 更新字体
+app.put('/api/admin/fonts/:id', requireAuth, async (req, res) => {
+  try {
+    if (!req.user.is_admin) {
+      return res.status(403).json({ error: '需要管理员权限' });
+    }
+
+    const { family, display_name, category, google_font_name, weights, sort_order, is_active } = req.body;
+
+    const result = await pool.query(
+      `UPDATE fonts SET
+        family = COALESCE($1, family),
+        display_name = COALESCE($2, display_name),
+        category = COALESCE($3, category),
+        google_font_name = COALESCE($4, google_font_name),
+        weights = COALESCE($5, weights),
+        sort_order = COALESCE($6, sort_order),
+        is_active = COALESCE($7, is_active)
+       WHERE id = $8
+       RETURNING *`,
+      [
+        family, display_name, category,
+        google_font_name, weights ? JSON.stringify(weights) : null,
+        sort_order, is_active, req.params.id
+      ]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: '字体不存在' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('更新字体错误:', error);
+    res.status(500).json({ error: '更新字体失败' });
+  }
+});
+
+// 删除字体
+app.delete('/api/admin/fonts/:id', requireAuth, async (req, res) => {
+  try {
+    if (!req.user.is_admin) {
+      return res.status(403).json({ error: '需要管理员权限' });
+    }
+
+    const result = await pool.query('DELETE FROM fonts WHERE id = $1 RETURNING id', [req.params.id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: '字体不存在' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('删除字体错误:', error);
+    res.status(500).json({ error: '删除字体失败' });
   }
 });
 

@@ -23,3 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 .env
+# Windows 保留设备名（误创建的文件）
+nul
+NUL
