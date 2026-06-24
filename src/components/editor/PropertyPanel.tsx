@@ -1778,8 +1778,9 @@ const AnimationTab = ({
   reorderAnimations: (elementId: string, startIndex: number, endIndex: number) => void;
 }) => {
   const { animationExpanded, toggleAnimationExpanded } = useEditorStore();
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [previewing, setPreviewing] = useState(false);
+	  const [showAddModal, setShowAddModal] = useState(false);
+	  const [replaceAnimationId, setReplaceAnimationId] = useState<string | null>(null);
+	  const [previewing, setPreviewing] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragoverIndex, setDragoverIndex] = useState<number | null>(null);
   const previewTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1852,21 +1853,45 @@ const AnimationTab = ({
     setPreviewing(false);
   }, [selectedElementId, animations, selectedElement]);
 
-  // 添加动画
-  const handleAddAnimation = (cssClass: string, name: string) => {
-    if (!selectedElementId || !selectedElement) return;
-    // 从动画目录查找分类信息
-    const cat = animationLibrary.find(c => c.items.some(item => item.cssClass === cssClass));
-    addAnimation(selectedElementId, {
-      name,
-      cssClass,
-      duration: 1000,
-      delay: 0,
-      iterationCount: 1,
-      category: (cat?.category === '进入' ? 'enter' : cat?.category === '强调' ? 'emphasis' : 'enter') as 'enter' | 'emphasis' | 'exit',
-    });
-    setShowAddModal(false);
-  };
+	  // 根据 CSS 类名获取动画分类（中文 -> 英文）
+	  const getAnimationCategoryEn = (cssClass: string): 'enter' | 'emphasis' | 'exit' => {
+	    for (const cat of animationLibrary) {
+	      const found = cat.items.find((item) => item.cssClass === cssClass);
+	      if (found) {
+	        if (cat.category === '进入') return 'enter';
+	        if (cat.category === '强调') return 'emphasis';
+	        if (cat.category === '退出') return 'exit';
+	      }
+	    }
+	    return 'enter';
+	  };
+
+	  // 添加或替换动画
+	  const handleAddOrReplaceAnimation = (cssClass: string, name: string) => {
+	    if (!selectedElementId || !selectedElement) return;
+
+	    if (replaceAnimationId) {
+	      // 替换模式：更新现有动画的名称、CSS 类名和分类，其他参数保持不变
+	      updateAnimation(selectedElementId, replaceAnimationId, {
+	        name,
+	        cssClass,
+	        category: getAnimationCategoryEn(cssClass),
+	      });
+	    } else {
+	      // 添加模式：创建新动画
+	      addAnimation(selectedElementId, {
+	        name,
+	        cssClass,
+	        duration: 1000,
+	        delay: 0,
+	        iterationCount: 1,
+	        category: getAnimationCategoryEn(cssClass),
+	      });
+	    }
+
+	    setReplaceAnimationId(null);
+	    setShowAddModal(false);
+	  };
 
   // 删除动画
   const handleRemoveAnimation = (animId: string) => {
@@ -1989,18 +2014,25 @@ const AnimationTab = ({
                       </div>
                       <span className="text-xs text-gray-400 w-4 font-mono">{index + 1}</span>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-sm font-medium text-gray-700 truncate">{anim.name}</span>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
-                            getAnimationCategory(anim.cssClass) === '进入'
-                              ? 'bg-green-50 text-green-600'
-                              : getAnimationCategory(anim.cssClass) === '强调'
-                                ? 'bg-amber-50 text-amber-600'
-                                : 'bg-red-50 text-red-600'
-                          }`}>
-                            {getAnimationCategory(anim.cssClass) || '动画'}
-                          </span>
-                        </div>
+	                        <div className="flex items-center gap-1.5">
+	                          <span
+	                            className="text-sm font-medium text-gray-700 truncate cursor-pointer hover:text-blue-600 transition-colors"
+	                            onClick={() => {
+	                              setReplaceAnimationId(anim.id);
+	                              setShowAddModal(true);
+	                            }}
+	                            title="点击替换动画"
+	                          >{anim.name}</span>
+	                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+	                            getAnimationCategory(anim.cssClass) === '进入'
+	                              ? 'bg-green-50 text-green-600'
+	                              : getAnimationCategory(anim.cssClass) === '强调'
+	                                ? 'bg-amber-50 text-amber-600'
+	                                : 'bg-red-50 text-red-600'
+	                          }`}>
+	                            {getAnimationCategory(anim.cssClass) || '动画'}
+	                          </span>
+	                        </div>
                         <div className="text-[10px] text-gray-400">
                           {(anim.duration / 1000).toFixed(1)}s
                           {anim.delay > 0 ? ` / 延迟${(anim.delay / 1000).toFixed(1)}s` : ''}
@@ -2108,12 +2140,12 @@ const AnimationTab = ({
         </>
       )}
 
-      {showAddModal && (
-        <AddAnimationModal
-          onSelect={handleAddAnimation}
-          onClose={() => setShowAddModal(false)}
-        />
-      )}
+	      {showAddModal && (
+	        <AddAnimationModal
+	          onSelect={handleAddOrReplaceAnimation}
+	          onClose={() => { setShowAddModal(false); setReplaceAnimationId(null); }}
+	        />
+	      )}
     </div>
   );
 };
