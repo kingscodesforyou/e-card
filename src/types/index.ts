@@ -6,6 +6,7 @@ export interface ElementAnimation {
   duration: number;       // 动画时长（毫秒）
   delay: number;          // 延迟时间（毫秒）
   iterationCount: number | 'infinite';  // 重复次数
+  category: 'enter' | 'emphasis' | 'exit';
 }
 
 export interface CardElement {

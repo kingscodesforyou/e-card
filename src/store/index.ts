@@ -33,6 +33,8 @@ interface EditorState {
   };
   selectedElementId: string | null;
   isPreviewMode: boolean;
+  // 动画面板展开状态（按动画ID记录, UI 状态，持久化以应对组件重挂载）
+  animationExpanded: Record<string, boolean>;
   // 历史记录
   history: HistoryEntry[];
   historyIndex: number;
@@ -66,6 +68,7 @@ interface EditorState {
   removeAnimation: (elementId: string, animationId: string) => void;
   updateAnimation: (elementId: string, animationId: string, updates: Partial<ElementAnimation>) => void;
   reorderAnimations: (elementId: string, startIndex: number, endIndex: number) => void;
+  toggleAnimationExpanded: (id: string) => void;
   // 撤销/重做
   undo: () => void;
   redo: () => void;
@@ -139,6 +142,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     },
     selectedElementId: null,
     isPreviewMode: false,
+    animationExpanded: {},
     history: [],
     historyIndex: -1,
     // 设置当前卡片
@@ -611,6 +615,13 @@ export const useEditorStore = create<EditorState>((set, get) => {
         saveHistory('reorderPages', prevState, nextState);
         return { currentCard: nextState };
       }),
+    toggleAnimationExpanded: (id) =>
+      set((state) => ({
+        animationExpanded: {
+          ...state.animationExpanded,
+          [id]: !state.animationExpanded[id],
+        },
+      })),
     // 撤销
     undo: () =>
       set((state) => {

@@ -4,6 +4,7 @@ import { useEditorStore } from '../../store';
 import { getFontDatabase, FONT_CATEGORIES, searchFonts, loadFontDatabase, type FontInfo, type FontCategory } from '../../lib/fonts';
 import type { ElementAnimation, CardElement } from '../../types';
 
+
 const presetColors = ['#FFFFFF', '#FF0000', '#FFA500', '#FFFF00', '#00FF00', '#0000FF', '#87CEEB', '#800080', '#808080', '#000000'];
 
 const shapePresets = [
@@ -1776,9 +1777,9 @@ const AnimationTab = ({
   updateAnimation: (elementId: string, animationId: string, updates: Partial<ElementAnimation>) => void;
   reorderAnimations: (elementId: string, startIndex: number, endIndex: number) => void;
 }) => {
+  const { animationExpanded, toggleAnimationExpanded } = useEditorStore();
   const [showAddModal, setShowAddModal] = useState(false);
   const [previewing, setPreviewing] = useState(false);
-  const [expandedAnimId, setExpandedAnimId] = useState<string | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragoverIndex, setDragoverIndex] = useState<number | null>(null);
   const previewTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1854,12 +1855,15 @@ const AnimationTab = ({
   // 添加动画
   const handleAddAnimation = (cssClass: string, name: string) => {
     if (!selectedElementId || !selectedElement) return;
+    // 从动画目录查找分类信息
+    const cat = animationLibrary.find(c => c.items.some(item => item.cssClass === cssClass));
     addAnimation(selectedElementId, {
       name,
       cssClass,
       duration: 1000,
       delay: 0,
       iterationCount: 1,
+      category: (cat?.category === '进入' ? 'enter' : cat?.category === '强调' ? 'emphasis' : 'enter') as 'enter' | 'emphasis' | 'exit',
     });
     setShowAddModal(false);
   };
@@ -1868,9 +1872,6 @@ const AnimationTab = ({
   const handleRemoveAnimation = (animId: string) => {
     if (!selectedElementId) return;
     removeAnimation(selectedElementId, animId);
-    if (expandedAnimId === animId) {
-      setExpandedAnimId(null);
-    }
   };
 
   // 上移
@@ -1914,7 +1915,7 @@ const AnimationTab = ({
 
   // 展开/折叠
   const toggleExpand = (animId: string) => {
-    setExpandedAnimId(expandedAnimId === animId ? null : animId);
+    toggleAnimationExpanded(animId);
   };
 
   // 选中元素变化时清除预览
@@ -2035,10 +2036,10 @@ const AnimationTab = ({
                         <button
                           onClick={() => toggleExpand(anim.id)}
                           className={`p-1 rounded transition-colors ${
-                            expandedAnimId === anim.id ? 'text-blue-500 bg-blue-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                            animationExpanded[anim.id] ? 'text-blue-500 bg-blue-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                           }`}
                         >
-                          {expandedAnimId === anim.id ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                          {animationExpanded[anim.id] ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                         </button>
                         <button
                           onClick={() => handleRemoveAnimation(anim.id)}
@@ -2050,7 +2051,7 @@ const AnimationTab = ({
                       </div>
                     </div>
 
-                    {expandedAnimId === anim.id && (
+                    {animationExpanded[anim.id] && (
                       <div className="px-3 pb-3 pt-1 border-t border-gray-100 mt-1 space-y-2">
                         <div>
                           <label className="text-[10px] text-gray-500 font-medium">动画时长</label>
