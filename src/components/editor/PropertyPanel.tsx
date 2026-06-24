@@ -299,53 +299,242 @@ const PropertyPanel = () => {
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">外阴影</label>
                   <div className="flex items-center gap-2 mb-2">
-                    <div className="w-8 h-8 bg-black rounded" />
-                    <div className="flex gap-1">
+                    <input
+                      type="color"
+                      value={(() => {
+                        const bs = selectedElement.style.boxShadow || '';
+                        if (bs.startsWith('inset ')) return '#000000';
+                        const m = bs.match(/(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/);
+                        return m?.[1] || '#000000';
+                      })()}
+                      onChange={(e) => {
+                        const color = e.target.value;
+                        const cur = selectedElement.style.boxShadow || '';
+                        if (cur.startsWith('inset ')) return;
+                        const rest = cur.replace(/(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/g, '').trim();
+                        updateElement(selectedElementId, { style: { ...selectedElement.style, boxShadow: rest ? `${rest} ${color}` : `2px 2px 4px ${color}` } });
+                      }}
+                      className="w-8 h-8 border border-gray-200 rounded cursor-pointer"
+                    />
+                    <div className="flex gap-1 flex-wrap">
                       {presetColors.map((color, index) => (
-                        <button key={index} className="w-4 h-4 rounded border border-gray-200" style={{ backgroundColor: color }} />
+                        <button
+                          key={index}
+                          onClick={() => {
+                            const cur = selectedElement.style.boxShadow || '';
+                            if (cur.startsWith('inset ')) return;
+                            const rest = cur.replace(/(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/g, '').trim();
+                            updateElement(selectedElementId, { style: { ...selectedElement.style, boxShadow: rest ? `${rest} ${color}` : `2px 2px 4px ${color}` } });
+                          }}
+                          className="w-4 h-4 rounded border border-gray-200 hover:scale-110 transition-transform"
+                          style={{ backgroundColor: color }}
+                        />
                       ))}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <div>
                       <label className="text-xs text-gray-500">横向</label>
-                      <input type="number" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" defaultValue="0" />
+                      <input
+                        type="number"
+                        value={(() => {
+                          const bs = selectedElement.style.boxShadow || '';
+                          if (bs.startsWith('inset ')) return 0;
+                          const m = bs.match(/(-?\d+)px/);
+                          return m ? parseInt(m[1]) : 0;
+                        })()}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          const bs = selectedElement.style.boxShadow || '0px 0px 0px #000';
+                          if (bs.startsWith('inset ')) {
+                            const parts = bs.split(' ');
+                            parts[1] = `${v}px`;
+                            updateElement(selectedElementId, { style: { ...selectedElement.style, boxShadow: parts.join(' ') } });
+                          } else {
+                            const parts = bs.split(' ');
+                            parts[0] = `${v}px`;
+                            updateElement(selectedElementId, { style: { ...selectedElement.style, boxShadow: parts.join(' ') } });
+                          }
+                        }}
+                        className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+                      />
                     </div>
                     <div>
                       <label className="text-xs text-gray-500">纵向</label>
-                      <input type="number" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" defaultValue="0" />
+                      <input
+                        type="number"
+                        value={(() => {
+                          const bs = selectedElement.style.boxShadow || '0px 0px 0px #000';
+                          if (bs.startsWith('inset ')) return parseInt(bs.split(' ')[1] || '0');
+                          return parseInt(bs.split(' ')[1] || '0');
+                        })()}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          const bs = selectedElement.style.boxShadow || '0px 0px 0px #000';
+                          if (bs.startsWith('inset ')) {
+                            const parts = bs.split(' ');
+                            parts[2] = `${v}px`;
+                            updateElement(selectedElementId, { style: { ...selectedElement.style, boxShadow: parts.join(' ') } });
+                          } else {
+                            const parts = bs.split(' ');
+                            parts[1] = `${v}px`;
+                            updateElement(selectedElementId, { style: { ...selectedElement.style, boxShadow: parts.join(' ') } });
+                          }
+                        }}
+                        className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+                      />
                     </div>
                     <div>
                       <label className="text-xs text-gray-500">模糊</label>
-                      <input type="number" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" defaultValue="0" />
+                      <input
+                        type="number"
+                        value={(() => {
+                          const bs = selectedElement.style.boxShadow || '0px 0px 0px #000';
+                          if (bs.startsWith('inset ')) return parseInt(bs.split(' ')[2] || '0');
+                          return parseInt(bs.split(' ')[2] || '0');
+                        })()}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          const bs = selectedElement.style.boxShadow || '0px 0px 0px #000';
+                          if (bs.startsWith('inset ')) {
+                            const parts = bs.split(' ');
+                            parts[3] = `${v}px`;
+                            updateElement(selectedElementId, { style: { ...selectedElement.style, boxShadow: parts.join(' ') } });
+                          } else {
+                            const parts = bs.split(' ');
+                            parts[2] = `${v}px`;
+                            updateElement(selectedElementId, { style: { ...selectedElement.style, boxShadow: parts.join(' ') } });
+                          }
+                        }}
+                        className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+                      />
                     </div>
                   </div>
                 </div>
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">内阴影</label>
                   <div className="flex items-center gap-2 mb-2">
-                    <div className="w-8 h-8 bg-gray-400 rounded" />
-                    <div className="flex gap-1">
+                    <input
+                      type="color"
+                      value={(() => {
+                        const bs = selectedElement.style.boxShadow || '';
+                        if (!bs.startsWith('inset ')) return '#000000';
+                        const m = bs.match(/(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/);
+                        return m?.[1] || '#000000';
+                      })()}
+                      onChange={(e) => {
+                        const color = e.target.value;
+                        const cur = selectedElement.style.boxShadow || '';
+                        if (!cur.startsWith('inset ')) {
+                          updateElement(selectedElementId, { style: { ...selectedElement.style, boxShadow: `inset 2px 2px 4px ${color}` } });
+                          return;
+                        }
+                        const rest = cur.replace(/(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/g, '').trim();
+                        updateElement(selectedElementId, { style: { ...selectedElement.style, boxShadow: rest ? `${rest} ${color}` : `inset 2px 2px 4px ${color}` } });
+                      }}
+                      className="w-8 h-8 border border-gray-200 rounded cursor-pointer"
+                    />
+                    <div className="flex gap-1 flex-wrap">
                       {presetColors.map((color, index) => (
-                        <button key={index} className="w-4 h-4 rounded border border-gray-200" style={{ backgroundColor: color }} />
+                        <button
+                          key={index}
+                          onClick={() => {
+                            const cur = selectedElement.style.boxShadow || '';
+                            if (!cur.startsWith('inset ')) {
+                              updateElement(selectedElementId, { style: { ...selectedElement.style, boxShadow: `inset 2px 2px 4px ${color}` } });
+                              return;
+                            }
+                            const rest = cur.replace(/(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/g, '').trim();
+                            updateElement(selectedElementId, { style: { ...selectedElement.style, boxShadow: rest ? `${rest} ${color}` : `inset 2px 2px 4px ${color}` } });
+                          }}
+                          className="w-4 h-4 rounded border border-gray-200 hover:scale-110 transition-transform"
+                          style={{ backgroundColor: color }}
+                        />
                       ))}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <div>
                       <label className="text-xs text-gray-500">横向</label>
-                      <input type="number" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" defaultValue="0" />
+                      <input
+                        type="number"
+                        value={(() => {
+                          const bs = selectedElement.style.boxShadow || 'inset 0px 0px 0px #000';
+                          if (!bs.startsWith('inset ')) return 0;
+                          return parseInt(bs.split(' ')[1] || '0');
+                        })()}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          const bs = selectedElement.style.boxShadow || 'inset 0px 0px 0px #000';
+                          if (!bs.startsWith('inset ')) {
+                            updateElement(selectedElementId, { style: { ...selectedElement.style, boxShadow: `inset ${v}px 0px 0px #000000` } });
+                            return;
+                          }
+                          const parts = bs.split(' ');
+                          parts[1] = `${v}px`;
+                          updateElement(selectedElementId, { style: { ...selectedElement.style, boxShadow: parts.join(' ') } });
+                        }}
+                        className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+                      />
                     </div>
                     <div>
                       <label className="text-xs text-gray-500">纵向</label>
-                      <input type="number" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" defaultValue="0" />
+                      <input
+                        type="number"
+                        value={(() => {
+                          const bs = selectedElement.style.boxShadow || 'inset 0px 0px 0px #000';
+                          if (!bs.startsWith('inset ')) return 0;
+                          return parseInt(bs.split(' ')[2] || '0');
+                        })()}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          const bs = selectedElement.style.boxShadow || 'inset 0px 0px 0px #000';
+                          if (!bs.startsWith('inset ')) {
+                            updateElement(selectedElementId, { style: { ...selectedElement.style, boxShadow: `inset 0px ${v}px 0px #000000` } });
+                            return;
+                          }
+                          const parts = bs.split(' ');
+                          parts[2] = `${v}px`;
+                          updateElement(selectedElementId, { style: { ...selectedElement.style, boxShadow: parts.join(' ') } });
+                        }}
+                        className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+                      />
                     </div>
                     <div>
                       <label className="text-xs text-gray-500">模糊</label>
-                      <input type="number" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" defaultValue="0" />
+                      <input
+                        type="number"
+                        value={(() => {
+                          const bs = selectedElement.style.boxShadow || 'inset 0px 0px 0px #000';
+                          if (!bs.startsWith('inset ')) return 0;
+                          return parseInt(bs.split(' ')[3] || '0');
+                        })()}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          const bs = selectedElement.style.boxShadow || 'inset 0px 0px 0px #000';
+                          if (!bs.startsWith('inset ')) {
+                            updateElement(selectedElementId, { style: { ...selectedElement.style, boxShadow: `inset 0px 0px ${v}px #000000` } });
+                            return;
+                          }
+                          const parts = bs.split(' ');
+                          parts[3] = `${v}px`;
+                          updateElement(selectedElementId, { style: { ...selectedElement.style, boxShadow: parts.join(' ') } });
+                        }}
+                        className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+                      />
                     </div>
                   </div>
                 </div>
+                <button
+                  onClick={() => {
+                    const newStyle = { ...selectedElement.style };
+                    delete newStyle.boxShadow;
+                    updateElement(selectedElementId, { style: newStyle });
+                  }}
+                  className="w-full py-1.5 text-xs font-medium text-red-500 bg-red-50 hover:bg-red-100 border border-red-200 rounded transition-colors"
+                >
+                  关闭阴影
+                </button>
               </div>
             )}
 
@@ -946,6 +1135,17 @@ const PropertyPanel = () => {
                     </div>
                   </div>
                 </div>
+                <button
+                  onClick={() => {
+                    const newStyle = { ...selectedElement.style };
+                    delete newStyle.textShadow;
+                    delete newStyle.boxShadow;
+                    updateElement(selectedElementId, { style: newStyle });
+                  }}
+                  className="w-full py-1.5 text-xs font-medium text-red-500 bg-red-50 hover:bg-red-100 border border-red-200 rounded transition-colors"
+                >
+                  关闭阴影
+                </button>
               </div>
             )}
 
