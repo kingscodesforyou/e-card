@@ -84,14 +84,6 @@ export function getElementVisualStyle(
 ): CSSProperties {
   const { style } = element;
 
-  // 使用字符串拼接而非模板字面量，避免 ${} 插值在工具链中被剥离
-  const durMs = typeof style.animationDuration === 'number'
-    ? String(style.animationDuration) + 'ms'
-    : undefined;
-  const delayMs = typeof style.animationDelay === 'number'
-    ? String(style.animationDelay) + 'ms'
-    : undefined;
-
   const visual: CSSProperties = {
     ...baseStyle,
     fontSize: style.fontSize,
@@ -115,8 +107,14 @@ export function getElementVisualStyle(
     wordBreak: 'break-word',
     whiteSpace: 'pre-wrap',
     animation: style.animation,
-    animationDuration: durMs,
-    animationDelay: delayMs,
+    animationDuration:
+      typeof style.animationDuration === 'number'
+        ? `${style.animationDuration}ms`
+        : undefined,
+    animationDelay:
+      typeof style.animationDelay === 'number'
+        ? `${style.animationDelay}ms`
+        : undefined,
     animationIterationCount: style.animationIterationCount,
   };
 
