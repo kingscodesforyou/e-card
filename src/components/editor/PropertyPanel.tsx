@@ -1395,7 +1395,6 @@ const PropertyPanel = () => {
   };
 
   const AnimationTab = () => {
-    // 动画类型 -> CSS animation 映射
     const animationMap: Record<string, string> = {
       'none': '',
       '淡入': 'fadeIn',
@@ -1406,7 +1405,6 @@ const PropertyPanel = () => {
     };
 
     const currentAnimationName = selectedElement?.style.animation || '';
-    // 反查当前动画对应的中文标签
     let currentAnimLabel = '无';
     for (const [label, css] of Object.entries(animationMap)) {
       if (css && currentAnimationName.startsWith(css)) {
@@ -1419,6 +1417,50 @@ const PropertyPanel = () => {
     const animDelay = selectedElement?.style.animationDelay ?? 0;
     const animIteration = selectedElement?.style.animationIterationCount ?? 1;
     const isLoop = animIteration === 'infinite' || (typeof animIteration === 'number' && animIteration > 10);
+
+    const triggerAnimation = (animName: string) => {
+      if (!animName) return;
+      const duration = selectedElement!.style.animationDuration || 1000;
+      
+      updateElement(selectedElementId!, { style: { ...selectedElement!.style, animation: '' } });
+      
+      setTimeout(() => {
+        updateElement(selectedElementId!, { 
+          style: { 
+            ...selectedElement!.style, 
+            animation: animName,
+            animationDuration: duration,
+            animationFillMode: 'forwards',
+            animationTimingFunction: 'ease',
+          } 
+        });
+      }, 50);
+    };
+
+    const handleAnimationChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const css = animationMap[e.target.value] || '';
+      const duration = selectedElement!.style.animationDuration || 1000;
+      
+      const newStyle = {
+        ...selectedElement!.style,
+        animation: css,
+        animationDuration: duration,
+        animationFillMode: css ? 'forwards' : undefined,
+        animationTimingFunction: css ? 'ease' : undefined,
+      };
+      
+      updateElement(selectedElementId!, { style: newStyle });
+
+      if (css) {
+        triggerAnimation(css);
+      }
+    };
+
+    const handleReplayAnimation = () => {
+      if (currentAnimationName) {
+        triggerAnimation(currentAnimationName);
+      }
+    };
 
     return (
       <div className="space-y-4 p-4">
@@ -1434,27 +1476,7 @@ const PropertyPanel = () => {
               <select
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg"
                 value={currentAnimLabel}
-                onChange={(e) => {
-                  const css = animationMap[e.target.value] || '';
-                  // 关键：确保动画时长有默认值（1000ms），否则 animation-duration 为 0s 动画不可见
-                  const defaultDuration = selectedElement.style.animationDuration || 1000;
-                  const newStyle = {
-                    ...selectedElement.style,
-                    animation: css,
-                    animationDuration: defaultDuration,
-                  };
-                  updateElement(selectedElementId, { style: newStyle });
-
-                  // 选择非"无"动画时自动触发一次播放预览
-                  if (css) {
-                    // 先清除再重设，强制 CSS animation 从初始状态播放一次
-                    const clearStyle = { ...newStyle, animation: '', animationDuration: defaultDuration };
-                    updateElement(selectedElementId, { style: clearStyle });
-                    requestAnimationFrame(() => {
-                      updateElement(selectedElementId, { style: newStyle });
-                    });
-                  }
-                }}
+                onChange={handleAnimationChange}
               >
                 <option>无</option>
                 <option>淡入</option>
@@ -1519,7 +1541,6 @@ const PropertyPanel = () => {
                 <option value="infinite">无限</option>
               </select>
             </div>
-            {/* 循环播放开关（仅作为 repeat 的快捷切换） */}
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">循环播放</span>
               <button
@@ -1538,16 +1559,9 @@ const PropertyPanel = () => {
                 />
               </button>
             </div>
-            {/* 重播按钮（通过移除再重新赋值 animation 来触发重播） */}
             {currentAnimationName && (
               <button
-                onClick={() => {
-                  // 先清除动画触发 reflow，然后恢复
-                  updateElement(selectedElementId, { style: { ...selectedElement.style, animation: '' } });
-                  requestAnimationFrame(() => {
-                    updateElement(selectedElementId, { style: { ...selectedElement.style, animation: currentAnimationName } });
-                  });
-                }}
+                onClick={handleReplayAnimation}
                 className="w-full py-2 border border-blue-200 rounded-lg text-sm text-blue-600 hover:bg-blue-50"
               >
                 ▶ 预览动画
