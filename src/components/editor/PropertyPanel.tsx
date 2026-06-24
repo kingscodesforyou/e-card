@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
-import { X, ChevronDown, ChevronRight, Lock, Unlock, HelpCircle, RotateCcw, Crop, Wand2, ImageIcon, Type, Sparkles, Link, Move, Search } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { X, ChevronDown, ChevronRight, Lock, Unlock, HelpCircle, RotateCcw, Crop, Wand2, ImageIcon, Type, Sparkles, Link, Move, Search, Plus, Play, Trash2, GripVertical, ArrowUp, ArrowDown, ChevronUp } from 'lucide-react';
 import { useEditorStore } from '../../store';
 import { getFontDatabase, FONT_CATEGORIES, searchFonts, loadFontDatabase, type FontInfo, type FontCategory } from '../../lib/fonts';
+import type { ElementAnimation, CardElement } from '../../types';
 
 const presetColors = ['#FFFFFF', '#FF0000', '#FFA500', '#FFFF00', '#00FF00', '#0000FF', '#87CEEB', '#800080', '#808080', '#000000'];
 
@@ -26,7 +27,7 @@ const filters = ['原图', '清新', '鲜明', '星光闪闪'];
 const moreFilters = ['鲜暖色', '质感', '落樱', '暗调'];
 
 const PropertyPanel = () => {
-  const { currentCard, selectedElementId, updateElement } = useEditorStore();
+  const { currentCard, selectedElementId, updateElement, addAnimation, removeAnimation, updateAnimation, reorderAnimations } = useEditorStore();
   const [activeTab, setActiveTab] = useState<'style' | 'animation' | 'trigger'>('style');
   const [expandedSections, setExpandedSections] = useState({
     function: true,
@@ -1594,197 +1595,527 @@ const PropertyPanel = () => {
     );
   };
 
-  const AnimationTab = () => {
-    const animationMap: Record<string, string> = {
-      'none': '',
-      '淡入': 'fadeIn',
-      '缩放': 'scaleIn',
-      '旋转': 'rotateIn',
-      '滑动': 'slideIn',
-      '弹跳': 'bounceIn',
-    };
+// ===== 动画数据定义（模块级常量） =====
+const animationLibrary: { category: string; items: { name: string; cssClass: string }[] }[] = [
+  {
+    category: '进入',
+    items: [
+      { name: '淡入', cssClass: 'fadeIn' },
+      { name: '向右移入', cssClass: 'slideInRight' },
+      { name: '向左移入', cssClass: 'slideInLeft' },
+      { name: '向上移入', cssClass: 'slideInUp' },
+      { name: '向下移入', cssClass: 'slideInDown' },
+      { name: '翻转进入', cssClass: 'flipIn' },
+      { name: '向右弹入', cssClass: 'bounceInRight' },
+      { name: '向左弹入', cssClass: 'bounceInLeft' },
+      { name: '向上弹入', cssClass: 'bounceInUp' },
+      { name: '向下弹入', cssClass: 'bounceInDown' },
+      { name: '翻开进入', cssClass: 'flipOpenIn' },
+      { name: '向左翻滚', cssClass: 'rollInLeft' },
+      { name: '向上翻滚', cssClass: 'rollInUp' },
+      { name: '向右翻滚', cssClass: 'rollInRight' },
+      { name: '向下翻滚', cssClass: 'rollInDown' },
+      { name: '中心弹入', cssClass: 'bounceInCenter' },
+      { name: '光速向右', cssClass: 'speedInRight' },
+      { name: '光速向左', cssClass: 'speedInLeft' },
+      { name: '光速向上', cssClass: 'speedInUp' },
+      { name: '光速向下', cssClass: 'speedInDown' },
+      { name: '中心放大', cssClass: 'scaleCenter' },
+      { name: '魔幻向右', cssClass: 'magicRight' },
+      { name: '魔幻向左', cssClass: 'magicLeft' },
+      { name: '魔幻向上', cssClass: 'magicUp' },
+      { name: '魔幻向下', cssClass: 'magicDown' },
+      { name: '缩小进入', cssClass: 'shrinkIn' },
+      { name: '向左旋转', cssClass: 'rotateInLeft' },
+      { name: '向右旋转', cssClass: 'rotateInRight' },
+      { name: '向上旋转', cssClass: 'rotateInUp' },
+      { name: '向下旋转', cssClass: 'rotateInDown' },
+    ],
+  },
+  {
+    category: '强调',
+    items: [
+      { name: '闪烁', cssClass: 'flash' },
+      { name: '脉冲', cssClass: 'pulse' },
+      { name: '抖动', cssClass: 'shake' },
+      { name: '弹跳', cssClass: 'bounce' },
+      { name: '摇摆', cssClass: 'swing' },
+      { name: '旋转', cssClass: 'spin' },
+      { name: '缩放强调', cssClass: 'scaleEmphasis' },
+    ],
+  },
+  {
+    category: '退出',
+    items: [
+      { name: '淡出', cssClass: 'fadeOut' },
+      { name: '滑出向右', cssClass: 'slideOutRight' },
+      { name: '滑出向左', cssClass: 'slideOutLeft' },
+      { name: '滑出向上', cssClass: 'slideOutUp' },
+      { name: '滑出向下', cssClass: 'slideOutDown' },
+    ],
+  },
+];
 
-    const currentAnimationName = selectedElement?.style.animation || '';
-    let currentAnimLabel = '无';
-    for (const [label, css] of Object.entries(animationMap)) {
-      if (css && currentAnimationName.startsWith(css)) {
-        currentAnimLabel = label;
-        break;
+// 获取动画名称
+const getAnimationName = (cssClass: string): string => {
+  for (const cat of animationLibrary) {
+    const found = cat.items.find((item) => item.cssClass === cssClass);
+    if (found) return found.name;
+  }
+  return cssClass;
+};
+
+// 获取动画分类
+const getAnimationCategory = (cssClass: string): string => {
+  for (const cat of animationLibrary) {
+    const found = cat.items.find((item) => item.cssClass === cssClass);
+    if (found) return cat.category;
+  }
+  return '';
+};
+
+// ===== 添加动画弹窗组件 =====
+const AddAnimationModal = ({
+  onSelect,
+  onClose,
+}: {
+  onSelect: (cssClass: string, name: string) => void;
+  onClose: () => void;
+}) => {
+  const [activeCategory, setActiveCategory] = useState(animationLibrary[0]?.category || '进入');
+
+  const currentCategory = animationLibrary.find((c) => c.category === activeCategory);
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl w-full max-w-sm max-h-[80vh] overflow-hidden shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* 弹窗头部 */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+          <span className="text-sm font-medium text-gray-800">选择动画效果</span>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded transition-colors">
+            <X className="w-4 h-4 text-gray-500" />
+          </button>
+        </div>
+
+        {/* 分类标签 */}
+        <div className="flex gap-1 px-4 py-2.5 border-b border-gray-100">
+          {animationLibrary.map((cat) => (
+            <button
+              key={cat.category}
+              onClick={() => setActiveCategory(cat.category)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                activeCategory === cat.category
+                  ? cat.category === '进入'
+                    ? 'bg-green-50 text-green-700 ring-1 ring-green-200'
+                    : cat.category === '强调'
+                      ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200'
+                      : 'bg-red-50 text-red-700 ring-1 ring-red-200'
+                  : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+              }`}
+            >
+              {cat.category}
+              <span className="ml-1 text-[10px] opacity-60">({cat.items.length})</span>
+            </button>
+          ))}
+        </div>
+
+        {/* 动画列表 */}
+        <div className="overflow-y-auto max-h-[50vh] p-3">
+          {currentCategory && (
+            <div className="grid grid-cols-3 gap-2">
+              {currentCategory.items.map((item) => (
+                <button
+                  key={item.cssClass}
+                  onClick={() => onSelect(item.cssClass, item.name)}
+                  className={`flex flex-col items-center justify-center p-2.5 rounded-lg border transition-all hover:shadow-sm ${
+                    activeCategory === '进入'
+                      ? 'border-green-100 hover:border-green-300 hover:bg-green-50'
+                      : activeCategory === '强调'
+                        ? 'border-amber-100 hover:border-amber-300 hover:bg-amber-50'
+                        : 'border-red-100 hover:border-red-300 hover:bg-red-50'
+                  }`}
+                >
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-lg mb-1 ${
+                      activeCategory === '进入'
+                        ? 'bg-green-50 text-green-500'
+                        : activeCategory === '强调'
+                          ? 'bg-amber-50 text-amber-500'
+                          : 'bg-red-50 text-red-500'
+                    }`}
+                  >
+                    {activeCategory === '进入' ? '✨' : activeCategory === '强调' ? '💫' : '💨'}
+                  </div>
+                  <span className="text-[11px] text-gray-600 text-center leading-tight">{item.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ===== 动画页签组件（独立组件，支持 Hooks） =====
+const AnimationTab = ({
+  selectedElement,
+  selectedElementId,
+  addAnimation,
+  removeAnimation,
+  updateAnimation,
+  reorderAnimations,
+}: {
+  selectedElement: CardElement | undefined;
+  selectedElementId: string | null;
+  addAnimation: (elementId: string, animation: Omit<ElementAnimation, 'id'>) => void;
+  removeAnimation: (elementId: string, animationId: string) => void;
+  updateAnimation: (elementId: string, animationId: string, updates: Partial<ElementAnimation>) => void;
+  reorderAnimations: (elementId: string, startIndex: number, endIndex: number) => void;
+}) => {
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+  const [expandedAnimId, setExpandedAnimId] = useState<string | null>(null);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragoverIndex, setDragoverIndex] = useState<number | null>(null);
+  const previewTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const animContainerRef = useRef<HTMLDivElement>(null);
+
+  const animations = selectedElement?.animations || [];
+
+  // 清理预览定时器
+  useEffect(() => {
+    return () => {
+      if (previewTimeoutRef.current) {
+        clearTimeout(previewTimeoutRef.current);
       }
+    };
+  }, []);
+
+  // 预览单个动画
+  const playSingleAnimation = useCallback((anim: ElementAnimation) => {
+    if (!selectedElementId || !selectedElement) return;
+    
+    const el = document.getElementById(`canvas-element-${selectedElementId}`);
+    if (!el) return;
+
+    el.style.animation = 'none';
+    el.style.animationDuration = '0ms';
+    void el.offsetWidth;
+
+    el.style.animation = `${anim.cssClass} ${anim.duration}ms ease ${anim.delay}ms`;
+    if (anim.iterationCount === 'infinite') {
+      el.style.animationIterationCount = 'infinite';
+    } else {
+      el.style.animationIterationCount = String(anim.iterationCount);
+    }
+    el.style.animationFillMode = 'forwards';
+  }, [selectedElementId, selectedElement]);
+
+  // 预览完整动画序列
+  const playAnimationSequence = useCallback(async () => {
+    if (!selectedElementId || !animations.length || !selectedElement) return;
+    
+    setPreviewing(true);
+    const el = document.getElementById(`canvas-element-${selectedElementId}`);
+    if (!el) {
+      setPreviewing(false);
+      return;
     }
 
-    const animDuration = selectedElement?.style.animationDuration ?? 1000;
-    const animDelay = selectedElement?.style.animationDelay ?? 0;
-    const animIteration = selectedElement?.style.animationIterationCount ?? 1;
-    const isLoop = animIteration === 'infinite' || (typeof animIteration === 'number' && animIteration > 10);
+    el.style.animation = 'none';
+    el.style.animationDuration = '0ms';
+    void el.offsetWidth;
 
-    const triggerAnimation = (animName: string) => {
-      if (!animName || !selectedElementId || !selectedElement) return;
-      
-      // 保存当前样式
-      const currentStyle = selectedElement.style;
-      const duration = currentStyle.animationDuration || 1000;
-      
-      // 强制重播动画：先清空动画属性
-      updateElement(selectedElementId, { 
-        style: { 
-          ...currentStyle, 
-          animation: '',
-        } 
+    for (let i = 0; i < animations.length; i++) {
+      const anim = animations[i];
+      await new Promise<void>((resolve) => {
+        el!.style.animation = `${anim.cssClass} ${anim.duration}ms ease ${anim.delay}ms`;
+        if (anim.iterationCount === 'infinite') {
+          el!.style.animationIterationCount = 'infinite';
+        } else {
+          el!.style.animationIterationCount = String(anim.iterationCount);
+        }
+        el!.style.animationFillMode = 'forwards';
+
+        const totalDuration = anim.delay + anim.duration * (anim.iterationCount === 'infinite' ? 1 : (anim.iterationCount as number));
+        previewTimeoutRef.current = setTimeout(() => {
+          resolve();
+        }, totalDuration);
       });
-      
-      // 等待DOM更新后重新应用动画
-      setTimeout(() => {
-        updateElement(selectedElementId, { 
-          style: { 
-            ...currentStyle, 
-            animation: animName,
-            animationDuration: duration,
-            animationFillMode: 'forwards',
-            animationTimingFunction: 'ease',
-          } 
-        });
-      }, 50);
-    };
+    }
 
-    const handleAnimationChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const css = animationMap[e.target.value] || '';
-      const duration = selectedElement!.style.animationDuration || 1000;
-      
-      const newStyle = {
-        ...selectedElement!.style,
-        animation: css,
-        animationDuration: duration,
-        animationFillMode: css ? 'forwards' : undefined,
-        animationTimingFunction: css ? 'ease' : undefined,
-      };
-      
-      updateElement(selectedElementId!, { style: newStyle });
+    setPreviewing(false);
+  }, [selectedElementId, animations, selectedElement]);
 
-      // 如果选择了新动画，延迟后触发预览以看到效果
-      if (css) {
-        setTimeout(() => {
-          triggerAnimation(css);
-        }, 150);
-      }
-    };
-
-    const handleReplayAnimation = () => {
-      if (currentAnimationName && currentAnimationName !== 'none' && currentAnimationName !== '') {
-        triggerAnimation(currentAnimationName);
-      }
-    };
-
-    return (
-      <div className="space-y-4 p-4">
-        {!selectedElement ? (
-          <div className="text-center py-8">
-            <Sparkles className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-            <p className="text-gray-500 text-sm">选择一个元素以设置动画</p>
-          </div>
-        ) : (
-          <>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">动画类型</label>
-              <select
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg"
-                value={currentAnimLabel}
-                onChange={handleAnimationChange}
-              >
-                <option>无</option>
-                <option>淡入</option>
-                <option>缩放</option>
-                <option>旋转</option>
-                <option>滑动</option>
-                <option>弹跳</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">动画时长</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="range"
-                  min="0.1"
-                  max="5"
-                  step="0.1"
-                  value={animDuration / 1000}
-                  className="flex-1"
-                  onChange={(e) =>
-                    updateElement(selectedElementId, {
-                      style: { ...selectedElement.style, animationDuration: Number(e.target.value) * 1000 },
-                    })
-                  }
-                />
-                <span className="text-sm text-gray-600 w-8 text-right">{(animDuration / 1000).toFixed(1)}秒</span>
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">延迟时间</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="range"
-                  min="0"
-                  max="5"
-                  step="0.1"
-                  value={animDelay / 1000}
-                  className="flex-1"
-                  onChange={(e) =>
-                    updateElement(selectedElementId, {
-                      style: { ...selectedElement.style, animationDelay: Number(e.target.value) * 1000 },
-                    })
-                  }
-                />
-                <span className="text-sm text-gray-600 w-8 text-right">{(animDelay / 1000).toFixed(1)}秒</span>
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">重复次数</label>
-              <select
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg"
-                value={isLoop ? 'infinite' : String(animIteration)}
-                onChange={(e) =>
-                  updateElement(selectedElementId, {
-                    style: { ...selectedElement.style, animationIterationCount: e.target.value === 'infinite' ? 'infinite' : Number(e.target.value) },
-                  })
-                }
-              >
-                <option value="1">1次</option>
-                <option value="2">2次</option>
-                <option value="3">3次</option>
-                <option value="infinite">无限</option>
-              </select>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">循环播放</span>
-              <button
-                onClick={() =>
-                  updateElement(selectedElementId, {
-                    style: {
-                      ...selectedElement.style,
-                      animationIterationCount: isLoop ? 1 : 'infinite',
-                    },
-                  })
-                }
-                className={`w-12 h-6 rounded-full relative transition-colors ${isLoop ? 'bg-blue-500' : 'bg-gray-200'}`}
-              >
-                <span
-                  className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${isLoop ? 'right-1' : 'left-1'}`}
-                />
-              </button>
-            </div>
-            {currentAnimationName && (
-              <button
-                onClick={handleReplayAnimation}
-                className="w-full py-2 border border-blue-200 rounded-lg text-sm text-blue-600 hover:bg-blue-50"
-              >
-                ▶ 预览动画
-              </button>
-            )}
-          </>
-        )}
-      </div>
-    );
+  // 添加动画
+  const handleAddAnimation = (cssClass: string, name: string) => {
+    if (!selectedElementId || !selectedElement) return;
+    addAnimation(selectedElementId, {
+      name,
+      cssClass,
+      duration: 1000,
+      delay: 0,
+      iterationCount: 1,
+    });
+    setShowAddModal(false);
   };
+
+  // 删除动画
+  const handleRemoveAnimation = (animId: string) => {
+    if (!selectedElementId) return;
+    removeAnimation(selectedElementId, animId);
+    if (expandedAnimId === animId) {
+      setExpandedAnimId(null);
+    }
+  };
+
+  // 上移
+  const handleMoveUp = (index: number) => {
+    if (!selectedElementId || index <= 0) return;
+    reorderAnimations(selectedElementId, index, index - 1);
+  };
+
+  // 下移
+  const handleMoveDown = (index: number) => {
+    if (!selectedElementId || index >= animations.length - 1) return;
+    reorderAnimations(selectedElementId, index, index + 1);
+  };
+
+  // 拖拽
+  const handleDragStart = (index: number) => setDragIndex(index);
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragoverIndex(index);
+  };
+  const handleDrop = (index: number) => {
+    if (dragIndex === null || dragIndex === index || !selectedElementId) {
+      setDragIndex(null);
+      setDragoverIndex(null);
+      return;
+    }
+    reorderAnimations(selectedElementId, dragIndex, index);
+    setDragIndex(null);
+    setDragoverIndex(null);
+  };
+  const handleDragEnd = () => {
+    setDragIndex(null);
+    setDragoverIndex(null);
+  };
+
+  // 更新动画参数
+  const handleUpdateAnimParam = (animId: string, updates: Partial<ElementAnimation>) => {
+    if (!selectedElementId) return;
+    updateAnimation(selectedElementId, animId, updates);
+  };
+
+  // 展开/折叠
+  const toggleExpand = (animId: string) => {
+    setExpandedAnimId(expandedAnimId === animId ? null : animId);
+  };
+
+  // 选中元素变化时清除预览
+  useEffect(() => {
+    if (previewTimeoutRef.current) {
+      clearTimeout(previewTimeoutRef.current);
+    }
+    setPreviewing(false);
+  }, [selectedElementId]);
+
+  const hasAnimations = animations.length > 0;
+
+  return (
+    <div className="space-y-3 p-3">
+      {!selectedElement ? (
+        <div className="text-center py-8">
+          <Sparkles className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+          <p className="text-gray-500 text-sm">选择一个元素以设置动画</p>
+        </div>
+      ) : (
+        <>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              添加动画
+            </button>
+            <button
+              onClick={playAnimationSequence}
+              disabled={!hasAnimations || previewing}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-colors ${
+                !hasAnimations || previewing
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-green-500 text-white hover:bg-green-600'
+              }`}
+            >
+              <Play className="w-4 h-4" />
+              {previewing ? '播放中...' : '预览动画'}
+            </button>
+          </div>
+
+          <div ref={animContainerRef}>
+            {!hasAnimations ? (
+              <div className="text-center py-6 border-2 border-dashed border-gray-200 rounded-lg">
+                <Sparkles className="w-8 h-8 text-gray-300 mx-auto mb-1" />
+                <p className="text-gray-400 text-xs">暂无动画，点击上方"添加动画"</p>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {animations.map((anim, index) => (
+                  <div
+                    key={anim.id}
+                    draggable
+                    onDragStart={() => handleDragStart(index)}
+                    onDragOver={(e) => handleDragOver(e, index)}
+                    onDrop={() => handleDrop(index)}
+                    onDragEnd={handleDragEnd}
+                    className={`bg-white border rounded-lg transition-all ${
+                      dragoverIndex === index && dragIndex !== index
+                        ? 'border-blue-400 shadow-md scale-[1.02]'
+                        : dragIndex === index
+                          ? 'opacity-50 border-blue-300'
+                          : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 px-2 py-1.5">
+                      <div className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600">
+                        <GripVertical className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="text-xs text-gray-400 w-4 font-mono">{index + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm font-medium text-gray-700 truncate">{anim.name}</span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                            getAnimationCategory(anim.cssClass) === '进入'
+                              ? 'bg-green-50 text-green-600'
+                              : getAnimationCategory(anim.cssClass) === '强调'
+                                ? 'bg-amber-50 text-amber-600'
+                                : 'bg-red-50 text-red-600'
+                          }`}>
+                            {getAnimationCategory(anim.cssClass) || '动画'}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-gray-400">
+                          {(anim.duration / 1000).toFixed(1)}s
+                          {anim.delay > 0 ? ` / 延迟${(anim.delay / 1000).toFixed(1)}s` : ''}
+                          {anim.iterationCount === 'infinite' ? ' / 循环' : ` / ${anim.iterationCount}次`}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-0.5">
+                        <button
+                          onClick={() => playSingleAnimation(anim)}
+                          title="播放单个"
+                          className="p-1 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors"
+                        >
+                          <Play className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => handleMoveUp(index)}
+                          disabled={index === 0}
+                          className={`p-1 rounded transition-colors ${
+                            index === 0 ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                          }`}
+                        >
+                          <ArrowUp className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => handleMoveDown(index)}
+                          disabled={index === animations.length - 1}
+                          className={`p-1 rounded transition-colors ${
+                            index === animations.length - 1 ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                          }`}
+                        >
+                          <ArrowDown className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => toggleExpand(anim.id)}
+                          className={`p-1 rounded transition-colors ${
+                            expandedAnimId === anim.id ? 'text-blue-500 bg-blue-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                          }`}
+                        >
+                          {expandedAnimId === anim.id ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                        </button>
+                        <button
+                          onClick={() => handleRemoveAnimation(anim.id)}
+                          title="删除"
+                          className="p-1 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {expandedAnimId === anim.id && (
+                      <div className="px-3 pb-3 pt-1 border-t border-gray-100 mt-1 space-y-2">
+                        <div>
+                          <label className="text-[10px] text-gray-500 font-medium">动画时长</label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="range"
+                              min="0.1"
+                              max="5"
+                              step="0.1"
+                              value={anim.duration / 1000}
+                              onChange={(e) => handleUpdateAnimParam(anim.id, { duration: Number(e.target.value) * 1000 })}
+                              className="flex-1 h-1.5"
+                            />
+                            <span className="text-xs text-gray-500 w-10 text-right">{(anim.duration / 1000).toFixed(1)}s</span>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-gray-500 font-medium">延迟时间</label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="range"
+                              min="0"
+                              max="5"
+                              step="0.1"
+                              value={anim.delay / 1000}
+                              onChange={(e) => handleUpdateAnimParam(anim.id, { delay: Number(e.target.value) * 1000 })}
+                              className="flex-1 h-1.5"
+                            />
+                            <span className="text-xs text-gray-500 w-10 text-right">{(anim.delay / 1000).toFixed(1)}s</span>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-gray-500 font-medium">重复次数</label>
+                          <select
+                            value={anim.iterationCount === 'infinite' ? 'infinite' : String(anim.iterationCount)}
+                            onChange={(e) => handleUpdateAnimParam(anim.id, {
+                              iterationCount: e.target.value === 'infinite' ? 'infinite' : Number(e.target.value),
+                            })}
+                            className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-300"
+                          >
+                            <option value="1">1次</option>
+                            <option value="2">2次</option>
+                            <option value="3">3次</option>
+                            <option value="infinite">无限循环</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {showAddModal && (
+        <AddAnimationModal
+          onSelect={handleAddAnimation}
+          onClose={() => setShowAddModal(false)}
+        />
+      )}
+    </div>
+  );
+};
 
   const TriggerTab = () => {
     return (
@@ -2088,7 +2419,16 @@ const PropertyPanel = () => {
 
       <div className="flex-1 overflow-y-auto max-h-[700px] p-4">
         {activeTab === 'style' && StyleTab()}
-        {activeTab === 'animation' && AnimationTab()}
+        {activeTab === 'animation' && (
+          <AnimationTab
+            selectedElement={selectedElement}
+            selectedElementId={selectedElementId}
+            addAnimation={addAnimation}
+            removeAnimation={removeAnimation}
+            updateAnimation={updateAnimation}
+            reorderAnimations={reorderAnimations}
+          />
+        )}
         {activeTab === 'trigger' && TriggerTab()}
       </div>
 

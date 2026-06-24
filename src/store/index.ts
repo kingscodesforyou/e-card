@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { CardElement, CardPage, Template, Card, User } from '../types';
+import { CardElement, ElementAnimation, CardPage, Template, Card, User } from '../types';
 
 // 生成唯一ID
 const generateId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -61,6 +61,11 @@ interface EditorState {
   ungroupElement: (groupId: string) => void;
   // 复制元素
   duplicateElement: (id: string) => void;
+  // 动画序列管理
+  addAnimation: (elementId: string, animation: Omit<ElementAnimation, 'id'>) => void;
+  removeAnimation: (elementId: string, animationId: string) => void;
+  updateAnimation: (elementId: string, animationId: string, updates: Partial<ElementAnimation>) => void;
+  reorderAnimations: (elementId: string, startIndex: number, endIndex: number) => void;
   // 撤销/重做
   undo: () => void;
   redo: () => void;
@@ -524,6 +529,87 @@ export const useEditorStore = create<EditorState>((set, get) => {
         const nextState = { ...state.currentCard, pages: newPages };
         saveHistory('addElement', prevState, nextState);
         return { currentCard: nextState, selectedElementId: copy.id };
+      }),
+    // 添加动画到元素
+    addAnimation: (elementId, animation) =>
+      set((state) => {
+        const prevState = { ...state.currentCard };
+        const newPages = state.currentCard.pages.map((p) => ({
+          ...p,
+          elements: p.elements.map((el) => {
+            if (el.id !== elementId) return el;
+            const newAnim: ElementAnimation = {
+              ...animation,
+              id: generateId(),
+            };
+            return {
+              ...el,
+              animations: [...(el.animations || []), newAnim],
+            };
+          }),
+        }));
+        const nextState = { ...state.currentCard, pages: newPages };
+        saveHistory('updateElement', prevState, nextState);
+        return { currentCard: nextState };
+      }),
+    // 从元素移除动画
+    removeAnimation: (elementId, animationId) =>
+      set((state) => {
+        const prevState = { ...state.currentCard };
+        const newPages = state.currentCard.pages.map((p) => ({
+          ...p,
+          elements: p.elements.map((el) => {
+            if (el.id !== elementId) return el;
+            return {
+              ...el,
+              animations: (el.animations || []).filter((a) => a.id !== animationId),
+            };
+          }),
+        }));
+        const nextState = { ...state.currentCard, pages: newPages };
+        saveHistory('updateElement', prevState, nextState);
+        return { currentCard: nextState };
+      }),
+    // 更新动画配置
+    updateAnimation: (elementId, animationId, updates) =>
+      set((state) => {
+        const prevState = { ...state.currentCard };
+        const newPages = state.currentCard.pages.map((p) => ({
+          ...p,
+          elements: p.elements.map((el) => {
+            if (el.id !== elementId) return el;
+            return {
+              ...el,
+              animations: (el.animations || []).map((a) =>
+                a.id === animationId ? { ...a, ...updates } : a
+              ),
+            };
+          }),
+        }));
+        const nextState = { ...state.currentCard, pages: newPages };
+        saveHistory('updateElement', prevState, nextState);
+        return { currentCard: nextState };
+      }),
+    // 重新排序动画
+    reorderAnimations: (elementId, startIndex, endIndex) =>
+      set((state) => {
+        const prevState = { ...state.currentCard };
+        const newPages = state.currentCard.pages.map((p) => ({
+          ...p,
+          elements: p.elements.map((el) => {
+            if (el.id !== elementId) return el;
+            const animations = [...(el.animations || [])];
+            if (startIndex < 0 || startIndex >= animations.length || endIndex < 0 || endIndex >= animations.length) {
+              return el;
+            }
+            const [removed] = animations.splice(startIndex, 1);
+            animations.splice(endIndex, 0, removed);
+            return { ...el, animations };
+          }),
+        }));
+        const nextState = { ...state.currentCard, pages: newPages };
+        saveHistory('reorderPages', prevState, nextState);
+        return { currentCard: nextState };
       }),
     // 撤销
     undo: () =>

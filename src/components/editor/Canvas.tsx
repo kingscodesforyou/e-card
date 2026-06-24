@@ -180,6 +180,7 @@ const Canvas = () => {
       return (
         <div
           key={element.id}
+          id={`canvas-element-${element.id}`}
           style={style}
           onClick={(e) => handleElementClick(e, element.id)}
           onMouseDown={(e) => handleMouseDown(e, element)}
@@ -195,6 +196,7 @@ const Canvas = () => {
       return (
         <div
           key={element.id}
+          id={`canvas-element-${element.id}`}
           style={style}
           onClick={(e) => handleElementClick(e, element.id)}
           onMouseDown={(e) => handleMouseDown(e, element)}
@@ -215,6 +217,7 @@ const Canvas = () => {
       return (
         <div
           key={element.id}
+          id={`canvas-element-${element.id}`}
           style={style}
           onClick={(e) => handleElementClick(e, element.id)}
           onMouseDown={(e) => handleMouseDown(e, element)}
@@ -229,6 +232,7 @@ const Canvas = () => {
       return (
         <div
           key={element.id}
+          id={`canvas-element-${element.id}`}
           style={{
             ...style,
             display: 'flex',
@@ -254,6 +258,7 @@ const Canvas = () => {
       return (
         <div
           key={element.id}
+          id={`canvas-element-${element.id}`}
           style={{
             ...style,
             border: isSelected ? '2px dashed #8b5cf6' : '1px dashed #94a3b8',

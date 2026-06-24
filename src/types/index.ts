@@ -1,3 +1,13 @@
+// 单个动画配置
+export interface ElementAnimation {
+  id: string;
+  name: string;           // 动画名称（如：淡入、缩放等）
+  cssClass: string;       // CSS动画类名
+  duration: number;       // 动画时长（毫秒）
+  delay: number;          // 延迟时间（毫秒）
+  iterationCount: number | 'infinite';  // 重复次数
+}
+
 export interface CardElement {
   id: string;
   type: 'text' | 'image' | 'shape' | 'audio' | 'video' | 'icon' | 'group';
@@ -9,6 +19,7 @@ export interface CardElement {
   visible?: boolean;
   locked?: boolean;
   selected?: boolean;
+  animations?: ElementAnimation[];  // 动画序列
   children?: string[];
   childElements?: CardElement[];
   style: {
