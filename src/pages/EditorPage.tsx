@@ -403,7 +403,7 @@ const EditorPage = () => {
           </div>
 
           {/* 右侧：属性面板 */}
-          <div className="w-80 bg-white border-l border-gray-200 overflow-y-auto p-4">
+          <div className="w-96 bg-white border-l border-gray-200 overflow-y-auto p-4">
             <PropertyPanel />
           </div>
         </div>
