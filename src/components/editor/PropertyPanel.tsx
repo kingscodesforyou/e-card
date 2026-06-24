@@ -694,19 +694,40 @@ const PropertyPanel = () => {
               <div className="space-y-3 pl-4 pb-2">
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">边框样式</label>
-                  <select className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
-                    <option>直线</option>
-                    <option>虚线</option>
-                    <option>点线</option>
+                  <select
+                    value={
+                      selectedElement.style.borderStyle === 'dashed' ? '虚线' :
+                      selectedElement.style.borderStyle === 'dotted' ? '点线' : '直线'
+                    }
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      const map: Record<string, 'solid' | 'dashed' | 'dotted'> = { '直线': 'solid', '虚线': 'dashed', '点线': 'dotted' };
+                      updateElement(selectedElementId, { style: { ...selectedElement.style, borderStyle: map[v] || 'solid' } });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  >
+                    <option value="直线">直线</option>
+                    <option value="虚线">虚线</option>
+                    <option value="点线">点线</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">边框颜色</label>
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 border border-gray-200 rounded" />
-                    <div className="flex gap-1">
+                    <input
+                      type="color"
+                      value={selectedElement.style.borderColor || '#000000'}
+                      onChange={(e) => updateElement(selectedElementId, { style: { ...selectedElement.style, borderColor: e.target.value } })}
+                      className="w-8 h-8 border border-gray-200 rounded cursor-pointer"
+                    />
+                    <div className="flex gap-1 flex-wrap">
                       {presetColors.map((color, index) => (
-                        <button key={index} className="w-5 h-5 rounded border border-gray-200" style={{ backgroundColor: color }} />
+                        <button
+                          key={index}
+                          onClick={() => updateElement(selectedElementId, { style: { ...selectedElement.style, borderColor: color } })}
+                          className="w-5 h-5 rounded border border-gray-200 hover:scale-110 transition-transform"
+                          style={{ backgroundColor: color }}
+                        />
                       ))}
                     </div>
                   </div>
@@ -714,22 +735,31 @@ const PropertyPanel = () => {
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">边框尺寸</label>
                   <div className="flex items-center gap-2">
-                    <input type="range" min="0" max="20" value={selectedElement.style.borderWidth || 0} className="flex-1" />
-                    <input type="number" min="0" max="20" value={selectedElement.style.borderWidth || 0} className="w-16 px-2 py-1 border border-gray-200 rounded text-sm" />
+                    <input
+                      type="range" min="0" max="20"
+                      value={selectedElement.style.borderWidth || 0}
+                      onChange={(e) => updateElement(selectedElementId, { style: { ...selectedElement.style, borderWidth: Number(e.target.value) } })}
+                      className="flex-1"
+                    />
+                    <input
+                      type="number" min="0" max="20"
+                      value={selectedElement.style.borderWidth || 0}
+                      onChange={(e) => updateElement(selectedElementId, { style: { ...selectedElement.style, borderWidth: Number(e.target.value) } })}
+                      className="w-16 px-2 py-1 border border-gray-200 rounded text-sm"
+                    />
                   </div>
                 </div>
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">圆角</label>
                   <div className="flex items-center gap-2">
-                    <div className="grid grid-cols-2 gap-2 flex-1">
-                      <input type="number" placeholder="左上" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" defaultValue={selectedElement.style.borderRadius || 0} />
-                      <input type="number" placeholder="右上" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" defaultValue={selectedElement.style.borderRadius || 0} />
-                      <input type="number" placeholder="左下" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" defaultValue={selectedElement.style.borderRadius || 0} />
-                      <input type="number" placeholder="右下" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" defaultValue={selectedElement.style.borderRadius || 0} />
+                    <div className="flex-1">
+                      <input
+                        type="number" min="0" max="50" placeholder="圆角"
+                        value={selectedElement.style.borderRadius || 0}
+                        onChange={(e) => updateElement(selectedElementId, { style: { ...selectedElement.style, borderRadius: Number(e.target.value) } })}
+                        className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+                      />
                     </div>
-                    <button className="p-1 border border-gray-200 rounded">
-                      {isLocked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-                    </button>
                   </div>
                 </div>
               </div>
@@ -745,52 +775,174 @@ const PropertyPanel = () => {
             {expandedSections.shadow && (
               <div className="space-y-4 pl-4 pb-2">
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">外阴影</label>
+                  <label className="block text-xs text-gray-500 mb-1">文字阴影 (text-shadow)</label>
                   <div className="flex items-center gap-2 mb-2">
-                    <div className="w-8 h-8 bg-black rounded" />
-                    <div className="flex gap-1">
+                    <input
+                      type="color"
+                      value={(() => {
+                        const m = (selectedElement.style.textShadow || '').match(/(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/);
+                        return m?.[1] || '#000000';
+                      })()}
+                      onChange={(e) => {
+                        const color = e.target.value;
+                        const cur = selectedElement.style.textShadow || '';
+                        const rest = cur.replace(/(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/g, '').trim();
+                        updateElement(selectedElementId, { style: { ...selectedElement.style, textShadow: rest ? `${rest} ${color}` : `2px 2px 4px ${color}` } });
+                      }}
+                      className="w-8 h-8 border border-gray-200 rounded cursor-pointer"
+                    />
+                    <div className="flex gap-1 flex-wrap">
                       {presetColors.map((color, index) => (
-                        <button key={index} className="w-4 h-4 rounded border border-gray-200" style={{ backgroundColor: color }} />
+                        <button
+                          key={index}
+                          onClick={() => {
+                            const cur = selectedElement.style.textShadow || '';
+                            const rest = cur.replace(/(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/g, '').trim();
+                            updateElement(selectedElementId, { style: { ...selectedElement.style, textShadow: rest ? `${rest} ${color}` : `2px 2px 4px ${color}` } });
+                          }}
+                          className="w-4 h-4 rounded border border-gray-200 hover:scale-110 transition-transform"
+                          style={{ backgroundColor: color }}
+                        />
                       ))}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <div>
                       <label className="text-xs text-gray-500">横向</label>
-                      <input type="number" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" defaultValue="0" />
+                      <input
+                        type="number"
+                        value={(() => {
+                          const m = (selectedElement.style.textShadow || '0px 0px 0px #000').match(/(-?\d+)px/);
+                          return m ? parseInt(m[1]) : 0;
+                        })()}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          const parts = (selectedElement.style.textShadow || '0px 0px 0px #000').split(' ');
+                          parts[0] = `${v}px`;
+                          updateElement(selectedElementId, { style: { ...selectedElement.style, textShadow: parts.join(' ') } });
+                        }}
+                        className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+                      />
                     </div>
                     <div>
                       <label className="text-xs text-gray-500">纵向</label>
-                      <input type="number" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" defaultValue="0" />
+                      <input
+                        type="number"
+                        value={(() => {
+                          const parts = (selectedElement.style.textShadow || '0px 0px 0px #000').split(' ');
+                          return parseInt(parts[1] || '0');
+                        })()}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          const parts = (selectedElement.style.textShadow || '0px 0px 0px #000').split(' ');
+                          parts[1] = `${v}px`;
+                          updateElement(selectedElementId, { style: { ...selectedElement.style, textShadow: parts.join(' ') } });
+                        }}
+                        className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+                      />
                     </div>
                     <div>
                       <label className="text-xs text-gray-500">模糊</label>
-                      <input type="number" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" defaultValue="0" />
+                      <input
+                        type="number"
+                        value={(() => {
+                          const parts = (selectedElement.style.textShadow || '0px 0px 0px #000').split(' ');
+                          return parseInt(parts[2] || '0');
+                        })()}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          const parts = (selectedElement.style.textShadow || '0px 0px 0px #000').split(' ');
+                          parts[2] = `${v}px`;
+                          updateElement(selectedElementId, { style: { ...selectedElement.style, textShadow: parts.join(' ') } });
+                        }}
+                        className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+                      />
                     </div>
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">内阴影</label>
+                  <label className="block text-xs text-gray-500 mb-1">外阴影 (box-shadow)</label>
                   <div className="flex items-center gap-2 mb-2">
-                    <div className="w-8 h-8 bg-gray-400 rounded" />
-                    <div className="flex gap-1">
+                    <input
+                      type="color"
+                      value={(() => {
+                        const m = (selectedElement.style.boxShadow || '').match(/(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/);
+                        return m?.[1] || '#000000';
+                      })()}
+                      onChange={(e) => {
+                        const color = e.target.value;
+                        const cur = selectedElement.style.boxShadow || '';
+                        const rest = cur.replace(/(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/g, '').trim();
+                        updateElement(selectedElementId, { style: { ...selectedElement.style, boxShadow: rest ? `${rest} ${color}` : `2px 2px 4px ${color}` } });
+                      }}
+                      className="w-8 h-8 border border-gray-200 rounded cursor-pointer"
+                    />
+                    <div className="flex gap-1 flex-wrap">
                       {presetColors.map((color, index) => (
-                        <button key={index} className="w-4 h-4 rounded border border-gray-200" style={{ backgroundColor: color }} />
+                        <button
+                          key={index}
+                          onClick={() => {
+                            const cur = selectedElement.style.boxShadow || '';
+                            const rest = cur.replace(/(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/g, '').trim();
+                            updateElement(selectedElementId, { style: { ...selectedElement.style, boxShadow: rest ? `${rest} ${color}` : `2px 2px 4px ${color}` } });
+                          }}
+                          className="w-4 h-4 rounded border border-gray-200 hover:scale-110 transition-transform"
+                          style={{ backgroundColor: color }}
+                        />
                       ))}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <div>
                       <label className="text-xs text-gray-500">横向</label>
-                      <input type="number" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" defaultValue="0" />
+                      <input
+                        type="number"
+                        value={(() => {
+                          const m = (selectedElement.style.boxShadow || '0px 0px 0px #000').match(/(-?\d+)px/);
+                          return m ? parseInt(m[1]) : 0;
+                        })()}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          const parts = (selectedElement.style.boxShadow || '0px 0px 0px #000').split(' ');
+                          parts[0] = `${v}px`;
+                          updateElement(selectedElementId, { style: { ...selectedElement.style, boxShadow: parts.join(' ') } });
+                        }}
+                        className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+                      />
                     </div>
                     <div>
                       <label className="text-xs text-gray-500">纵向</label>
-                      <input type="number" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" defaultValue="0" />
+                      <input
+                        type="number"
+                        value={(() => {
+                          const parts = (selectedElement.style.boxShadow || '0px 0px 0px #000').split(' ');
+                          return parseInt(parts[1] || '0');
+                        })()}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          const parts = (selectedElement.style.boxShadow || '0px 0px 0px #000').split(' ');
+                          parts[1] = `${v}px`;
+                          updateElement(selectedElementId, { style: { ...selectedElement.style, boxShadow: parts.join(' ') } });
+                        }}
+                        className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+                      />
                     </div>
                     <div>
                       <label className="text-xs text-gray-500">模糊</label>
-                      <input type="number" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" defaultValue="0" />
+                      <input
+                        type="number"
+                        value={(() => {
+                          const parts = (selectedElement.style.boxShadow || '0px 0px 0px #000').split(' ');
+                          return parseInt(parts[2] || '0');
+                        })()}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          const parts = (selectedElement.style.boxShadow || '0px 0px 0px #000').split(' ');
+                          parts[2] = `${v}px`;
+                          updateElement(selectedElementId, { style: { ...selectedElement.style, boxShadow: parts.join(' ') } });
+                        }}
+                        className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+                      />
                     </div>
                   </div>
                 </div>
@@ -1284,12 +1436,24 @@ const PropertyPanel = () => {
                 value={currentAnimLabel}
                 onChange={(e) => {
                   const css = animationMap[e.target.value] || '';
-                  updateElement(selectedElementId, {
-                    style: {
-                      ...selectedElement.style,
-                      animation: css,
-                    },
-                  });
+                  // 关键：确保动画时长有默认值（1000ms），否则 animation-duration 为 0s 动画不可见
+                  const defaultDuration = selectedElement.style.animationDuration || 1000;
+                  const newStyle = {
+                    ...selectedElement.style,
+                    animation: css,
+                    animationDuration: defaultDuration,
+                  };
+                  updateElement(selectedElementId, { style: newStyle });
+
+                  // 选择非"无"动画时自动触发一次播放预览
+                  if (css) {
+                    // 先清除再重设，强制 CSS animation 从初始状态播放一次
+                    const clearStyle = { ...newStyle, animation: '', animationDuration: defaultDuration };
+                    updateElement(selectedElementId, { style: clearStyle });
+                    requestAnimationFrame(() => {
+                      updateElement(selectedElementId, { style: newStyle });
+                    });
+                  }
                 }}
               >
                 <option>无</option>

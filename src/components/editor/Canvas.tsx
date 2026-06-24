@@ -155,6 +155,27 @@ const Canvas = () => {
     // 合并基础布局样式与元素视觉样式（包含形状专属的 clipPath/border 等）
     const style = getElementVisualStyle(element, layoutStyle);
 
+    // 选中状态下的控制按钮（调整手柄 + 删除按钮）
+    const selectedControls = isSelected && (
+      <>
+        <div
+          onMouseDown={(e) => handleResizeStart(e, element)}
+          className="absolute bottom-0 right-0 w-3 h-3 bg-purple-500 border-2 border-white rounded-full cursor-se-resize"
+          style={{ transform: 'translate(50%, 50%)' }}
+        />
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            deleteElement(element.id);
+          }}
+          className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600"
+          style={{ transform: 'translate(50%, -50%)' }}
+        >
+          ×
+        </button>
+      </>
+    );
+
     if (element.type === 'text') {
       return (
         <div
@@ -165,41 +186,28 @@ const Canvas = () => {
           className={`${isSelected ? 'ring-2 ring-purple-500' : element.selected ? 'ring-2 ring-cyan-400' : ''} px-2 py-1 select-none transition-shadow ${element.style.fontStyle === 'italic' ? 'italic' : ''}`}
         >
           {element.content}
-          {isSelected && (
-            <>
-              <div
-                onMouseDown={(e) => handleResizeStart(e, element)}
-                className="absolute bottom-0 right-0 w-3 h-3 bg-purple-500 border-2 border-white rounded-full cursor-se-resize"
-                style={{ transform: 'translate(50%, 50%)' }}
-              />
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deleteElement(element.id);
-                }}
-                className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600"
-                style={{ transform: 'translate(50%, -50%)' }}
-              >
-                ×
-              </button>
-            </>
-          )}
+          {selectedControls}
         </div>
       );
     }
 
     if (element.type === 'image') {
       return (
-        <img
+        <div
           key={element.id}
-          src={element.content}
-          alt=""
           style={style}
           onClick={(e) => handleElementClick(e, element.id)}
           onMouseDown={(e) => handleMouseDown(e, element)}
-          className={`${isSelected ? 'ring-2 ring-purple-500' : element.selected ? 'ring-2 ring-cyan-400' : ''} select-none object-cover transition-shadow`}
-          draggable={false}
-        />
+          className={`${isSelected ? 'ring-2 ring-purple-500' : element.selected ? 'ring-2 ring-cyan-400' : ''} select-none transition-shadow`}
+        >
+          <img
+            src={element.content}
+            alt=""
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            draggable={false}
+          />
+          {selectedControls}
+        </div>
       );
     }
 
@@ -211,7 +219,9 @@ const Canvas = () => {
           onClick={(e) => handleElementClick(e, element.id)}
           onMouseDown={(e) => handleMouseDown(e, element)}
           className={`${isSelected ? 'ring-2 ring-purple-500' : element.selected ? 'ring-2 ring-cyan-400' : ''} select-none`}
-        />
+        >
+          {selectedControls}
+        </div>
       );
     }
 
@@ -230,6 +240,7 @@ const Canvas = () => {
           className={`${isSelected ? 'ring-2 ring-purple-500' : element.selected ? 'ring-2 ring-cyan-400' : ''} select-none`}
         >
           {element.content}
+          {selectedControls}
         </div>
       );
     }
