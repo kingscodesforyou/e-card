@@ -1419,15 +1419,25 @@ const PropertyPanel = () => {
     const isLoop = animIteration === 'infinite' || (typeof animIteration === 'number' && animIteration > 10);
 
     const triggerAnimation = (animName: string) => {
-      if (!animName) return;
-      const duration = selectedElement!.style.animationDuration || 1000;
+      if (!animName || !selectedElementId || !selectedElement) return;
       
-      updateElement(selectedElementId!, { style: { ...selectedElement!.style, animation: '' } });
+      // 保存当前样式
+      const currentStyle = selectedElement.style;
+      const duration = currentStyle.animationDuration || 1000;
       
+      // 强制重播动画：先清空动画属性
+      updateElement(selectedElementId, { 
+        style: { 
+          ...currentStyle, 
+          animation: '',
+        } 
+      });
+      
+      // 等待DOM更新后重新应用动画
       setTimeout(() => {
-        updateElement(selectedElementId!, { 
+        updateElement(selectedElementId, { 
           style: { 
-            ...selectedElement!.style, 
+            ...currentStyle, 
             animation: animName,
             animationDuration: duration,
             animationFillMode: 'forwards',
@@ -1451,13 +1461,16 @@ const PropertyPanel = () => {
       
       updateElement(selectedElementId!, { style: newStyle });
 
+      // 如果选择了新动画，延迟后触发预览以看到效果
       if (css) {
-        triggerAnimation(css);
+        setTimeout(() => {
+          triggerAnimation(css);
+        }, 150);
       }
     };
 
     const handleReplayAnimation = () => {
-      if (currentAnimationName) {
+      if (currentAnimationName && currentAnimationName !== 'none' && currentAnimationName !== '') {
         triggerAnimation(currentAnimationName);
       }
     };

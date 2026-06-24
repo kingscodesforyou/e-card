@@ -114,7 +114,7 @@ export function getElementVisualStyle(
     overflow: 'hidden',
     wordBreak: 'break-word',
     whiteSpace: 'pre-wrap',
-    animation: style.animation,
+    animationName: style.animation,
     animationDuration: durMs,
     animationDelay: delayMs,
     animationIterationCount: style.animationIterationCount,
