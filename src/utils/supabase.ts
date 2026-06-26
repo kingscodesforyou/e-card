@@ -836,6 +836,86 @@ export const fonts = {
 };
 
 // =====================================================
+// 模板标签管理（分类、场合、风格）- 从本地 API 加载
+// =====================================================
+
+// 模板标签 mock 数据（与数据库种子数据一致）
+const mockCategories = [
+  '金融理财', '教育培训', '政务融媒', '医疗保健', '美容健身',
+  '餐饮美食', '房产装修', '旅游出行', '休闲娱乐', '汽车行业',
+  '生活服务', '商超百货', '其他'
+];
+const mockOccasions = [
+  '商务邀请', '活动邀请', '宴会邀请', '人才招聘', '招生培训',
+  '党建公益', '营销卖货', '企业介绍', '企业期刊', '企业庆典',
+  '行政办公', '总结汇报', '通知公告', '祝福问候', '日签打卡',
+  '个人简历', '纪念相册', '攻略指南', '新闻资讯',
+  '建党节', '建军节', '七夕', '小暑', '大暑', '立秋', '处暑',
+  '国际禁毒日', '香港回归纪念日', '接吻日', '七七抗战纪念日',
+  '全国保险公众宣传日', '世界人口日', '中国航海日', '夏三伏',
+  '那达慕', '全国海洋宣传日', '全国特奥日', '人类月球日', '世界肝炎日'
+];
+const mockStyles = [
+  '简约', '商务', '中国风', '手绘', '卡通', '时尚', '清新',
+  '奢华', '复古', '立体', '科技', '国潮', '炫酷', '喜庆',
+  '插画', '孟菲斯', '炫彩', '玻璃风', '膨胀风', '毛绒风',
+  '酸性', '漫画', '搞笑', '拼接风', 'Y2K', '赛博朋克'
+];
+
+export const templateLabels = {
+  getCategories: async () => {
+    if (isMockMode) {
+      return { data: mockCategories, error: null };
+    }
+
+    if (useLocalApi) {
+      try {
+        const data = await apiRequest('/api/template-categories');
+        return { data: data.map((item: any) => item.name), error: null };
+      } catch (error: any) {
+        return { data: null, error: { message: error.message } };
+      }
+    }
+
+    return { data: mockCategories, error: null };
+  },
+
+  getOccasions: async () => {
+    if (isMockMode) {
+      return { data: mockOccasions, error: null };
+    }
+
+    if (useLocalApi) {
+      try {
+        const data = await apiRequest('/api/template-occasions');
+        return { data: data.map((item: any) => item.name), error: null };
+      } catch (error: any) {
+        return { data: null, error: { message: error.message } };
+      }
+    }
+
+    return { data: mockOccasions, error: null };
+  },
+
+  getStyles: async () => {
+    if (isMockMode) {
+      return { data: mockStyles, error: null };
+    }
+
+    if (useLocalApi) {
+      try {
+        const data = await apiRequest('/api/template-styles');
+        return { data: data.map((item: any) => item.name), error: null };
+      } catch (error: any) {
+        return { data: null, error: { message: error.message } };
+      }
+    }
+
+    return { data: mockStyles, error: null };
+  },
+};
+
+// =====================================================
 // 短信验证码 - 需要配置本地 API 或 Supabase
 // =====================================================
 

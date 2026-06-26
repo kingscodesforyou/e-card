@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Plus, Edit2, Trash2, Image, X, Palette } from 'lucide-react';
-import { admin, templates } from '../../utils/supabase';
+import { admin, templates, templateLabels } from '../../utils/supabase';
 import type { Template } from '../../types';
 
 const TemplateManagementPage = () => {
@@ -22,9 +22,25 @@ const TemplateManagementPage = () => {
   });
   const [error, setError] = useState('');
 
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
+  const [occasionOptions, setOccasionOptions] = useState<string[]>([]);
+  const [styleOptions, setStyleOptions] = useState<string[]>([]);
+
   useEffect(() => {
     fetchTemplates();
+    fetchLabels();
   }, []);
+
+  const fetchLabels = async () => {
+    const [catRes, occRes, styRes] = await Promise.all([
+      templateLabels.getCategories(),
+      templateLabels.getOccasions(),
+      templateLabels.getStyles(),
+    ]);
+    if (catRes.data) setCategoryOptions(catRes.data);
+    if (occRes.data) setOccasionOptions(occRes.data);
+    if (styRes.data) setStyleOptions(styRes.data);
+  };
 
   const fetchTemplates = async () => {
     setIsLoading(true);
@@ -113,9 +129,7 @@ const TemplateManagementPage = () => {
     }
   };
 
-  const categories = ['节日', '生日', '婚礼', '感谢', '祝福', '其他'];
-  const occasions = ['新年', '春节', '情人节', '母亲节', '父亲节', '圣诞节', '生日', '婚礼', '毕业', '祝福', '慰问'];
-  const styles = ['简约', '华丽', '卡通', '复古', '手绘', '现代'];
+  // 分类/场合/风格数据现在从 API 获取（见 fetchLabels）
 
   return (
     <div className="space-y-6">
@@ -260,7 +274,7 @@ const TemplateManagementPage = () => {
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
                   <option value="">请选择分类</option>
-                  {categories.map((cat) => (
+                  {categoryOptions.map((cat) => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
@@ -273,7 +287,7 @@ const TemplateManagementPage = () => {
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
                   <option value="">请选择场合</option>
-                  {occasions.map((occ) => (
+                  {occasionOptions.map((occ) => (
                     <option key={occ} value={occ}>{occ}</option>
                   ))}
                 </select>
@@ -286,7 +300,7 @@ const TemplateManagementPage = () => {
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
                   <option value="">请选择风格</option>
-                  {styles.map((sty) => (
+                  {styleOptions.map((sty) => (
                     <option key={sty} value={sty}>{sty}</option>
                   ))}
                 </select>
@@ -369,7 +383,7 @@ const TemplateManagementPage = () => {
                   }
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
-                  {categories.map((cat) => (
+                  {categoryOptions.map((cat) => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
@@ -383,7 +397,7 @@ const TemplateManagementPage = () => {
                   }
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
-                  {occasions.map((occ) => (
+                  {occasionOptions.map((occ) => (
                     <option key={occ} value={occ}>{occ}</option>
                   ))}
                 </select>
@@ -397,7 +411,7 @@ const TemplateManagementPage = () => {
                   }
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
-                  {styles.map((sty) => (
+                  {styleOptions.map((sty) => (
                     <option key={sty} value={sty}>{sty}</option>
                   ))}
                 </select>
