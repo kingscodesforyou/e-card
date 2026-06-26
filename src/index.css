@@ -2,6 +2,45 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===== 闪烁预防 ===== */
+/* 强制 GPU 合成层，减少重绘和闪烁 */
+.will-change-transform {
+  will-change: transform;
+}
+
+/* 保证编辑器内容稳定 */
+.editor-main-content {
+  contain: layout style;
+  content-visibility: auto;
+}
+
+/* 编辑器内容渐入动画，避免生硬切换 */
+@keyframes fadeInContent {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fadeInContent 200ms ease-in-out;
+}
+
+/* 画布元素：禁用 CSS 过渡动画避免首次挂载时的闪烁 */
+.canvas-element {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
+/* 确保加载过渡平滑 */
+.fade-enter {
+  opacity: 0;
+}
+.fade-enter-active {
+  opacity: 1;
+  transition: opacity 150ms ease-in;
+}
+
 :root {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
   line-height: 1.5;
