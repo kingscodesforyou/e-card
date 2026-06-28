@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTemplatesStore } from '../store';
 import { templates, templateLabels } from '../utils/supabase';
 import TemplateCard from '../components/templates/TemplateCard';
+import AIRecommendBar from '../components/ai/AIRecommendBar';
 import { Template } from '../types';
 
 const HomePage = () => {
@@ -72,6 +73,16 @@ const HomePage = () => {
             海量精美模板，简单易用的编辑工具，让您轻松创建独一无二的电子贺卡。
             支持分享链接、PDF下载、邮件发送等多种导出方式。
           </p>
+
+          {/* AI 智能推荐条 */}
+          <div className="max-w-xl mx-auto mb-8">
+            <AIRecommendBar
+              onRecommend={() => {
+                window.location.href = '/templates';
+              }}
+              placeholder="描述您想要的贺卡，例如：给妈妈的生日贺卡"
+            />
+          </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
             <Link

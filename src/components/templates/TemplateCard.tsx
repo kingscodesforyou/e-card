@@ -48,7 +48,7 @@ const TemplateCard = ({ template, onSelect }: TemplateCardProps) => {
       onMouseLeave={() => setIsHovered(false)}
       onClick={() => onSelect(template)}
     >
-      <div className="relative aspect-[3/4] overflow-hidden">
+      <div className="relative aspect-[9/16] overflow-hidden">
         <img
           src={template.thumbnail_url}
           alt={template.name}

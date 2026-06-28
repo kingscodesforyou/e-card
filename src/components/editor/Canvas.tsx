@@ -345,9 +345,9 @@ const Canvas = memo(function Canvas() {
         onClick={handleCanvasClick}
         className="relative bg-white shadow-2xl rounded-lg overflow-hidden will-change-transform"
         style={{
-          width: 'min(90vw, 540px)',
-          height: 'min(calc(90vw * 4/3), 720px)',
-          aspectRatio: '3/4',
+          width: 'min(90vw, 360px)',
+          height: 'min(calc(90vw * 16/9), 640px)',
+          aspectRatio: '9/16',
           backgroundImage: currentPage?.backgroundUrl ? `url(${currentPage.backgroundUrl})` : undefined,
           backgroundSize: 'cover',
           backgroundPosition: 'center',

@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Music, Image as ImageIcon, Settings, Upload, X } from 'lucide-react';
+import { Music, Image as ImageIcon, Settings, Upload, X, Sparkles, Loader2 } from 'lucide-react';
 import { useEditorStore } from '../../store';
+import { ai } from '../../lib/ai';
 
 const PageSettingsPanel = () => {
   const { currentCard, updatePage } = useEditorStore();
@@ -8,6 +9,10 @@ const PageSettingsPanel = () => {
   
   const [bgTab, setBgTab] = useState<'color' | 'image'>('color');
   const [audioUrl, setAudioUrl] = useState(currentPage?.audioUrl || '');
+  const [aiBgDesc, setAiBgDesc] = useState('');
+  const [aiBgGenerating, setAiBgGenerating] = useState(false);
+  const [aiBgError, setAiBgError] = useState('');
+  const [aiBgPreview, setAiBgPreview] = useState('');
 
   if (!currentPage) return null;
 
@@ -38,6 +43,29 @@ const PageSettingsPanel = () => {
 
   const handleRemoveBackground = () => {
     updatePage(currentPage.id, { backgroundUrl: undefined, backgroundColor: '#ffffff' });
+  };
+
+  const handleAiGenerateBackground = async () => {
+    if (!aiBgDesc.trim()) return;
+    setAiBgGenerating(true);
+    setAiBgError('');
+    setAiBgPreview('');
+
+    const { data, error } = await ai.generateBackground(aiBgDesc);
+    if (error) {
+      setAiBgError(error.message || '生成失败');
+    } else if (data) {
+      setAiBgPreview(data);
+    }
+    setAiBgGenerating(false);
+  };
+
+  const handleApplyAiBackground = () => {
+    if (aiBgPreview) {
+      handleBackgroundImageChange(aiBgPreview);
+      setAiBgPreview('');
+      setAiBgDesc('');
+    }
   };
 
   const handleRemoveAudio = () => {
@@ -122,6 +150,66 @@ const PageSettingsPanel = () => {
                 移除背景图
               </button>
             )}
+
+            {/* AI 背景图生成 */}
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              <label className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-purple-500" />
+                AI 生成背景图
+              </label>
+              <div className="flex gap-1">
+                <input
+                  type="text"
+                  value={aiBgDesc}
+                  onChange={(e) => setAiBgDesc(e.target.value)}
+                  placeholder="描述背景，如：金色烟花中国风"
+                  className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded"
+                  onKeyDown={(e) => e.key === 'Enter' && handleAiGenerateBackground()}
+                />
+                <button
+                  onClick={handleAiGenerateBackground}
+                  disabled={aiBgGenerating || !aiBgDesc.trim()}
+                  className="px-2 py-1 bg-purple-500 text-white text-xs rounded hover:bg-purple-600 disabled:opacity-50 flex items-center gap-1"
+                >
+                  {aiBgGenerating ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-3 h-3" />
+                  )}
+                  生成
+                </button>
+              </div>
+
+              {aiBgError && (
+                <p className="text-xs text-red-500 mt-1">{aiBgError}</p>
+              )}
+
+              {aiBgPreview && (
+                <div className="mt-2">
+                  <div className="relative">
+                    <img
+                      src={aiBgPreview}
+                      alt="AI 生成背景"
+                      className="w-full h-24 object-cover rounded-lg border border-gray-200"
+                    />
+                  </div>
+                  <div className="flex gap-2 mt-1">
+                    <button
+                      onClick={handleApplyAiBackground}
+                      className="flex-1 py-1 text-xs font-medium text-white bg-purple-600 rounded hover:bg-purple-700"
+                    >
+                      应用为背景
+                    </button>
+                    <button
+                      onClick={() => { setAiBgPreview(''); setAiBgDesc(''); }}
+                      className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700"
+                    >
+                      取消
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

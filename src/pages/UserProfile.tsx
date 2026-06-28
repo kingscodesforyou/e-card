@@ -136,7 +136,7 @@ const UserProfile = () => {
                     key={card.id}
                     className="bg-gray-50 rounded-xl p-4 flex flex-col"
                   >
-                    <div className="aspect-[3/4] bg-white rounded-lg overflow-hidden shadow-sm mb-4 flex items-center justify-center">
+                    <div className="aspect-[9/16] bg-white rounded-lg overflow-hidden shadow-sm mb-4 flex items-center justify-center">
                       <div className="w-full h-full bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center">
                         <FileEdit className="w-12 h-12 text-gray-300" />
                       </div>
@@ -199,7 +199,7 @@ const UserProfile = () => {
                     </button>
                     
                     <div 
-                      className="aspect-[3/4] overflow-hidden cursor-pointer"
+                      className="aspect-[9/16] overflow-hidden cursor-pointer"
                       onClick={() => handleUseFavorite(template.id)}
                     >
                       <img

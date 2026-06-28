@@ -34,7 +34,7 @@ app.use(express.json({ limit: '50mb' }));
 // 静态文件 - 字体目录
 app.use('/fonts', express.static(path.join(projectRoot, 'public/fonts')));
 
-// JWT 配置
+import { generateGreetings, recommendTemplate, polishText, suggestColorScheme, generateBackground, generateTemplate, suggestLayout } from './aiRoutes.js';
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 const JWT_EXPIRES = process.env.JWT_EXPIRES || '7d';
 
@@ -306,6 +306,25 @@ app.get('/api/template-styles', async (req, res) => {
     res.status(500).json({ error: '获取风格失败' });
   }
 });
+
+// =====================================================
+// AI 服务 API（Agnes）
+// =====================================================
+
+// 生成祝福语
+app.post('/api/ai/greeting', generateGreetings);
+// 智能模板推荐
+app.post('/api/ai/recommend', recommendTemplate);
+// 文案润色/续写
+app.post('/api/ai/polish', polishText);
+// 配色方案建议
+app.post('/api/ai/color-scheme', suggestColorScheme);
+// 背景图生成
+app.post('/api/ai/generate-background', generateBackground);
+// 一句话生成模板
+app.post('/api/ai/generate-template', generateTemplate);
+// 智能布局建议
+app.post('/api/ai/suggest-layout', suggestLayout);
 
 // =====================================================
 // 字体相关 API
