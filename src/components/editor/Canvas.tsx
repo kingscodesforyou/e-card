@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { useEditorStore } from '../../store';
 import { CardElement } from '../../types';
 import { getElementVisualStyle } from '../../lib/elementStyle';
 
-const Canvas = () => {
+const Canvas = memo(function Canvas() {
   const { 
     currentCard, 
     selectedElementId, 
@@ -18,7 +18,11 @@ const Canvas = () => {
 
   // 获取当前页，按 zIndex 升序排列（zIndex 越小越先渲染，显示在下层）
   const currentPage = currentCard.pages[currentCard.currentPageIndex];
-  const elements = [...(currentPage?.elements || [])].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+  // 使用 useMemo 避免每次渲染都重新创建排序数组，减少子元素不必要的协调
+  const elements = useMemo(
+    () => [...(currentPage?.elements || [])].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0)),
+    [currentPage?.elements]
+  );
 
   const handleElementClick = (e: React.MouseEvent, elementId: string) => {
     e.stopPropagation();
@@ -180,10 +184,11 @@ const Canvas = () => {
       return (
         <div
           key={element.id}
+          id={`canvas-element-${element.id}`}
           style={style}
           onClick={(e) => handleElementClick(e, element.id)}
           onMouseDown={(e) => handleMouseDown(e, element)}
-          className={`${isSelected ? 'ring-2 ring-purple-500' : element.selected ? 'ring-2 ring-cyan-400' : ''} px-2 py-1 select-none transition-shadow ${element.style.fontStyle === 'italic' ? 'italic' : ''}`}
+          className={`canvas-element ${isSelected ? 'ring-2 ring-purple-500' : element.selected ? 'ring-2 ring-cyan-400' : ''} px-2 py-1 select-none ${element.style.fontStyle === 'italic' ? 'italic' : ''}`}
         >
           {element.content}
           {selectedControls}
@@ -195,10 +200,11 @@ const Canvas = () => {
       return (
         <div
           key={element.id}
+          id={`canvas-element-${element.id}`}
           style={style}
           onClick={(e) => handleElementClick(e, element.id)}
           onMouseDown={(e) => handleMouseDown(e, element)}
-          className={`${isSelected ? 'ring-2 ring-purple-500' : element.selected ? 'ring-2 ring-cyan-400' : ''} select-none transition-shadow`}
+          className={`canvas-element ${isSelected ? 'ring-2 ring-purple-500' : element.selected ? 'ring-2 ring-cyan-400' : ''} select-none`}
         >
           <img
             src={element.content}
@@ -215,10 +221,11 @@ const Canvas = () => {
       return (
         <div
           key={element.id}
+          id={`canvas-element-${element.id}`}
           style={style}
           onClick={(e) => handleElementClick(e, element.id)}
           onMouseDown={(e) => handleMouseDown(e, element)}
-          className={`${isSelected ? 'ring-2 ring-purple-500' : element.selected ? 'ring-2 ring-cyan-400' : ''} select-none`}
+          className={`canvas-element ${isSelected ? 'ring-2 ring-purple-500' : element.selected ? 'ring-2 ring-cyan-400' : ''} select-none`}
         >
           {selectedControls}
         </div>
@@ -229,6 +236,7 @@ const Canvas = () => {
       return (
         <div
           key={element.id}
+          id={`canvas-element-${element.id}`}
           style={{
             ...style,
             display: 'flex',
@@ -237,7 +245,7 @@ const Canvas = () => {
           }}
           onClick={(e) => handleElementClick(e, element.id)}
           onMouseDown={(e) => handleMouseDown(e, element)}
-          className={`${isSelected ? 'ring-2 ring-purple-500' : element.selected ? 'ring-2 ring-cyan-400' : ''} select-none`}
+          className={`canvas-element ${isSelected ? 'ring-2 ring-purple-500' : element.selected ? 'ring-2 ring-cyan-400' : ''} select-none`}
         >
           {element.content}
           {selectedControls}
@@ -254,6 +262,7 @@ const Canvas = () => {
       return (
         <div
           key={element.id}
+          id={`canvas-element-${element.id}`}
           style={{
             ...style,
             border: isSelected ? '2px dashed #8b5cf6' : '1px dashed #94a3b8',
@@ -263,7 +272,7 @@ const Canvas = () => {
           }}
           onClick={(e) => handleElementClick(e, element.id)}
           onMouseDown={(e) => handleMouseDown(e, element)}
-          className={`${isSelected ? 'ring-2 ring-purple-500' : element.selected ? 'ring-2 ring-cyan-400' : ''} select-none`}
+          className={`canvas-element ${isSelected ? 'ring-2 ring-purple-500' : element.selected ? 'ring-2 ring-cyan-400' : ''} select-none`}
         >
           {/* 渲染组内的子元素（按组尺寸换算百分比） */}
           {childElements.map((child) => {
@@ -334,7 +343,7 @@ const Canvas = () => {
       <div
         id="card-canvas"
         onClick={handleCanvasClick}
-        className="relative bg-white shadow-2xl rounded-lg overflow-hidden"
+        className="relative bg-white shadow-2xl rounded-lg overflow-hidden will-change-transform"
         style={{
           width: 'min(90vw, 540px)',
           height: 'min(calc(90vw * 4/3), 720px)',
@@ -343,6 +352,8 @@ const Canvas = () => {
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundColor: currentPage?.backgroundColor || '#ffffff',
+          transform: 'translateZ(0)', /* 强制 GPU 合成层，防止 paint 闪烁 */
+          backfaceVisibility: 'hidden',
         }}
       >
         {/* 渲染所有元素 */}
@@ -360,6 +371,6 @@ const Canvas = () => {
       </div>
     </div>
   );
-};
+});
 
 export default Canvas;

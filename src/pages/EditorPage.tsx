@@ -42,8 +42,20 @@ const EditorPage = () => {
   const [loadProgress, setLoadProgress] = useState(0);
   const hasCreatedCard = useRef(false); // 跟踪是否已创建贺卡
   const [currentCardId, setCurrentCardId] = useState<string | null>(null); // 当前编辑的卡片ID
+  const initializedRef = useRef(false); // 防止重复初始化
+
+  // 预加载背景图片，防止画布首次渲染时背景图加载导致的闪烁
+  const preloadBackgroundImage = useCallback((url: string | undefined) => {
+    if (!url) return;
+    const img = new Image();
+    img.src = url;
+  }, []);
 
   useEffect(() => {
+    // 防止重复初始化（fix: templateList 变化导致的效果重复执行）
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+
     const fetchData = async () => {
       try {
         setLoadProgress(10);
@@ -59,16 +71,19 @@ const EditorPage = () => {
           if (!error && existingCard) {
             setLoadProgress(70);
             setCurrentCardId(existingCard.id);
+            // 预加载背景图片
+            const pages = existingCard.pages || [{
+              id: generateId(),
+              pageNumber: 1,
+              elements: [],
+              transition: 'fade',
+              transitionDuration: 500,
+            }];
+            if (pages[0]?.backgroundUrl) preloadBackgroundImage(pages[0].backgroundUrl);
             setCurrentCard({
               title: existingCard.title,
               templateId: existingCard.template_id || '',
-              pages: existingCard.pages || [{
-                id: generateId(),
-                pageNumber: 1,
-                elements: [],
-                transition: 'fade',
-                transitionDuration: 500,
-              }],
+              pages,
               currentPageIndex: 0,
               backgroundMusicUrl: existingCard.background_music_url || '',
               backgroundMusicLoop: existingCard.background_music_loop !== undefined ? existingCard.background_music_loop : true,
@@ -99,6 +114,9 @@ const EditorPage = () => {
                   transitionDuration: 500,
                 }];
           
+            // 预加载背景图片
+            if (initialPages[0]?.backgroundUrl) preloadBackgroundImage(initialPages[0].backgroundUrl);
+
             setCurrentCard({
               title: data.name,
               templateId: data.id,
@@ -149,7 +167,12 @@ const EditorPage = () => {
         await loadDefaultTemplate();
       } finally {
         setLoadProgress(100);
-        setTimeout(() => setIsLoading(false), 300);
+        // 使用 requestAnimationFrame 确保在下一帧再切换，避免视觉闪烁
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setIsLoading(false);
+          });
+        });
       }
     };
 
@@ -165,7 +188,8 @@ const EditorPage = () => {
           const { data, error } = await templates.getAll();
           if (!error && data && data.length > 0) {
             setLoadProgress(70);
-            setTemplates(data);
+            // 使用 setTimeout 避免在异步流程中触发同步的 store 更新导致中间渲染
+            setTimeout(() => setTemplates(data), 0);
             initTemplate(data[0]);
           } else {
             setLoadProgress(80);
@@ -189,6 +213,10 @@ const EditorPage = () => {
             transition: 'fade',
             transitionDuration: 500,
           }];
+
+      // 预加载背景图片
+      const bgUrl = initialPages[0]?.backgroundUrl;
+      if (bgUrl) preloadBackgroundImage(bgUrl);
 
       setCurrentCard({
         title: template.name,
@@ -215,7 +243,8 @@ const EditorPage = () => {
     fetchData();
 
     return () => clearEditor();
-  }, [templateId, searchParams, setCurrentCard, setTemplates, clearEditor, templateList, isAuthenticated, user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [templateId, searchParams]); // 精简依赖，移除 templateList 防止重复初始化
 
   const handleSave = async () => {
     if (!isAuthenticated) {
@@ -388,9 +417,9 @@ const EditorPage = () => {
         </div>
       )}
 
-      {/* 主体三栏布局 */}
-      {!isLoading && (
-        <div className="flex-1 flex overflow-hidden pt-2">
+	      {/* 主体三栏布局 */}
+	      {!isLoading && (
+	        <div className="flex-1 flex overflow-hidden pt-2 editor-main-content animate-fade-in">
           {/* 左侧：编辑侧边栏 */}
           <EditorSidebar />
 
@@ -403,7 +432,7 @@ const EditorPage = () => {
           </div>
 
           {/* 右侧：属性面板 */}
-          <div className="w-80 bg-white border-l border-gray-200 overflow-y-auto p-4">
+          <div className="w-96 bg-white border-l border-gray-200 overflow-y-auto p-4">
             <PropertyPanel />
           </div>
         </div>

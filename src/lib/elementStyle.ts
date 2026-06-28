@@ -114,10 +114,13 @@ export function getElementVisualStyle(
     overflow: 'hidden',
     wordBreak: 'break-word',
     whiteSpace: 'pre-wrap',
-    animation: style.animation,
+    animationName: style.animation,
     animationDuration: durMs,
     animationDelay: delayMs,
     animationIterationCount: style.animationIterationCount,
+    animationFillMode: (style.animationFillMode as CSSProperties['animationFillMode']) || 'forwards',
+    animationTimingFunction: (style.animationTimingFunction as CSSProperties['animationTimingFunction']) || 'ease',
+    animationDirection: (style.animationDirection as CSSProperties['animationDirection']) || 'normal',
   };
 
   // 合并形状专属样式（clipPath / border 三角形等）

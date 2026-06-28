@@ -271,6 +271,43 @@ app.get('/api/templates/:id', async (req, res) => {
 });
 
 // =====================================================
+// 模板标签相关 API（分类、场合、风格）
+// =====================================================
+
+// 获取所有分类
+app.get('/api/template-categories', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM template_categories ORDER BY sort_order ASC');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('获取分类错误:', error);
+    res.status(500).json({ error: '获取分类失败' });
+  }
+});
+
+// 获取所有场合
+app.get('/api/template-occasions', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM template_occasions ORDER BY sort_order ASC');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('获取场合错误:', error);
+    res.status(500).json({ error: '获取场合失败' });
+  }
+});
+
+// 获取所有风格
+app.get('/api/template-styles', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM template_styles ORDER BY sort_order ASC');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('获取风格错误:', error);
+    res.status(500).json({ error: '获取风格失败' });
+  }
+});
+
+// =====================================================
 // 字体相关 API
 // =====================================================
 

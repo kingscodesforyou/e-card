@@ -130,7 +130,127 @@ CREATE INDEX IF NOT EXISTS idx_logs_target ON admin_action_logs(target_type, tar
 CREATE INDEX IF NOT EXISTS idx_logs_created ON admin_action_logs(created_at DESC);
 
 -- =====================================================
--- 6. 短信验证码表 (sms_codes)
+-- 6. 模板分类表 (template_categories)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS template_categories (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(50) NOT NULL UNIQUE,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 模板分类种子数据
+INSERT INTO template_categories (name, sort_order) VALUES
+    ('金融理财', 1),
+    ('教育培训', 2),
+    ('政务融媒', 3),
+    ('医疗保健', 4),
+    ('美容健身', 5),
+    ('餐饮美食', 6),
+    ('房产装修', 7),
+    ('旅游出行', 8),
+    ('休闲娱乐', 9),
+    ('汽车行业', 10),
+    ('生活服务', 11),
+    ('商超百货', 12),
+    ('其他', 13)
+ON CONFLICT (name) DO NOTHING;
+
+-- =====================================================
+-- 7. 模板场合表 (template_occasions)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS template_occasions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(50) NOT NULL UNIQUE,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 模板场合种子数据
+INSERT INTO template_occasions (name, sort_order) VALUES
+    ('商务邀请', 1),
+    ('活动邀请', 2),
+    ('宴会邀请', 3),
+    ('人才招聘', 4),
+    ('招生培训', 5),
+    ('党建公益', 6),
+    ('营销卖货', 7),
+    ('企业介绍', 8),
+    ('企业期刊', 9),
+    ('企业庆典', 10),
+    ('行政办公', 11),
+    ('总结汇报', 12),
+    ('通知公告', 13),
+    ('祝福问候', 14),
+    ('日签打卡', 15),
+    ('个人简历', 16),
+    ('纪念相册', 17),
+    ('攻略指南', 18),
+    ('新闻资讯', 19),
+    ('建党节', 20),
+    ('建军节', 21),
+    ('七夕', 22),
+    ('小暑', 23),
+    ('大暑', 24),
+    ('立秋', 25),
+    ('处暑', 26),
+    ('国际禁毒日', 27),
+    ('香港回归纪念日', 28),
+    ('接吻日', 29),
+    ('七七抗战纪念日', 30),
+    ('全国保险公众宣传日', 31),
+    ('世界人口日', 32),
+    ('中国航海日', 33),
+    ('夏三伏', 34),
+    ('那达慕', 35),
+    ('全国海洋宣传日', 36),
+    ('全国特奥日', 37),
+    ('人类月球日', 38),
+    ('世界肝炎日', 39)
+ON CONFLICT (name) DO NOTHING;
+
+-- =====================================================
+-- 8. 模板风格表 (template_styles)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS template_styles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(50) NOT NULL UNIQUE,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 模板风格种子数据
+INSERT INTO template_styles (name, sort_order) VALUES
+    ('简约', 1),
+    ('商务', 2),
+    ('中国风', 3),
+    ('手绘', 4),
+    ('卡通', 5),
+    ('时尚', 6),
+    ('清新', 7),
+    ('奢华', 8),
+    ('复古', 9),
+    ('立体', 10),
+    ('科技', 11),
+    ('国潮', 12),
+    ('炫酷', 13),
+    ('喜庆', 14),
+    ('插画', 15),
+    ('孟菲斯', 16),
+    ('炫彩', 17),
+    ('玻璃风', 18),
+    ('膨胀风', 19),
+    ('毛绒风', 20),
+    ('酸性', 21),
+    ('漫画', 22),
+    ('搞笑', 23),
+    ('拼接风', 24),
+    ('Y2K', 25),
+    ('赛博朋克', 26)
+ON CONFLICT (name) DO NOTHING;
+
+-- =====================================================
+-- 9. 短信验证码表 (sms_codes)
 -- =====================================================
 CREATE TABLE IF NOT EXISTS sms_codes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -148,7 +268,7 @@ CREATE INDEX IF NOT EXISTS idx_sms_expires ON sms_codes(expires_at);
 CREATE INDEX IF NOT EXISTS idx_sms_code ON sms_codes(phone, code, used) WHERE used = FALSE;
 
 -- =====================================================
--- 7. 反馈表 (feedbacks)
+-- 10. 反馈表 (feedbacks)
 -- =====================================================
 CREATE TABLE IF NOT EXISTS feedbacks (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

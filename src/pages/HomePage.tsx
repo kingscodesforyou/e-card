@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { Sparkles, Heart, Gift, ArrowRight, Star, TrendingUp } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTemplatesStore } from '../store';
-import { templates } from '../utils/supabase';
+import { templates, templateLabels } from '../utils/supabase';
 import TemplateCard from '../components/templates/TemplateCard';
 import { Template } from '../types';
 
@@ -16,21 +16,30 @@ const HomePage = () => {
       const { data, error } = await templates.getAll();
       if (!error && data) {
         setTemplates(data);
-        
-        const categories = [...new Set(data.map((t: Template) => t.category))] as string[];
-        const occasions = [...new Set(data.map((t: Template) => t.occasion))] as string[];
-        const styles = [...new Set(data.map((t: Template) => t.style))] as string[];
-        
-        setCategories(categories);
-        setOccasions(occasions);
-        setStyles(styles);
-        
         setFeaturedTemplates(data.slice(0, 6));
       }
       setLoading(false);
     };
 
+    const fetchLabels = async () => {
+      const [catRes, occRes, styRes] = await Promise.all([
+        templateLabels.getCategories(),
+        templateLabels.getOccasions(),
+        templateLabels.getStyles(),
+      ]);
+      if (catRes.data) {
+        setCategories(catRes.data);
+      }
+      if (occRes.data) {
+        setOccasions(occRes.data);
+      }
+      if (styRes.data) {
+        setStyles(styRes.data);
+      }
+    };
+
     fetchTemplates();
+    fetchLabels();
   }, [setTemplates, setCategories, setOccasions, setStyles, setLoading]);
 
   const handleSelectTemplate = (template: Template) => {
