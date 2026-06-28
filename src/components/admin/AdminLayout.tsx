@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Shield, Users, LayoutTemplate, Gift, LogOut, Menu, X, BarChart3, Home } from 'lucide-react';
+import { Shield, Users, LayoutTemplate, Gift, LogOut, Menu, X, BarChart3, Home, Settings } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
 interface AdminLayoutProps {
@@ -22,6 +22,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     { icon: Users, label: '用户管理', path: '/admin/users' },
     { icon: LayoutTemplate, label: '模板管理', path: '/admin/templates' },
     { icon: Gift, label: '贺卡管理', path: '/admin/cards' },
+    { icon: Settings, label: '系统设置', path: '/admin/settings' },
   ];
 
   return (

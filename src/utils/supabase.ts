@@ -798,6 +798,69 @@ export const admin = {
     }
     return { error: { message: 'Card not found' } };
   },
+
+  // 系统配置管理
+  getConfigs: async () => {
+    if (isMockMode) {
+      return { data: [{ key: 'model_api_rate_limit', value: 20, type: 'integer', description: '大模型API调用频率限制(rpm)', group_name: 'ai' }], error: null };
+    }
+
+    if (useLocalApi) {
+      try {
+        const token = localStorage.getItem('token');
+        const data = await apiRequest('/api/admin/configs', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        return { data, error: null };
+      } catch (error: any) {
+        return { data: null, error: { message: error.message } };
+      }
+    }
+
+    return { data: [], error: null };
+  },
+
+  getConfig: async (key: string) => {
+    if (isMockMode) {
+      return { data: { key, value: 20, type: 'integer', description: '大模型API调用频率限制(rpm)', group_name: 'ai' }, error: null };
+    }
+
+    if (useLocalApi) {
+      try {
+        const token = localStorage.getItem('token');
+        const data = await apiRequest(`/api/admin/configs/${key}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        return { data, error: null };
+      } catch (error: any) {
+        return { data: null, error: { message: error.message } };
+      }
+    }
+
+    return { data: null, error: null };
+  },
+
+  updateConfig: async (key: string, updates: { value?: string; description?: string; type?: string; group_name?: string }) => {
+    if (isMockMode) {
+      return { data: { success: true, message: '配置已更新（Mock模式）' }, error: null };
+    }
+
+    if (useLocalApi) {
+      try {
+        const token = localStorage.getItem('token');
+        const data = await apiRequest(`/api/admin/configs/${key}`, {
+          method: 'PUT',
+          body: JSON.stringify(updates),
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        return { data, error: null };
+      } catch (error: any) {
+        return { data: null, error: { message: error.message } };
+      }
+    }
+
+    return { data: { success: true }, error: null };
+  },
 };
 
 // =====================================================

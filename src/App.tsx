@@ -17,6 +17,7 @@ import UserManagementPage from "./pages/admin/UserManagementPage";
 import TemplateManagementPage from "./pages/admin/TemplateManagementPage";
 import TemplateEditorPage from "./pages/admin/TemplateEditorPage";
 import CardManagementPage from "./pages/admin/CardManagementPage";
+import SettingsPage from "./pages/admin/SettingsPage";
 import { useAuth } from "./hooks/useAuth";
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
@@ -55,6 +56,7 @@ function AppContent() {
               <Route path="users" element={<UserManagementPage />} />
               <Route path="templates" element={<TemplateManagementPage />} />
               <Route path="cards" element={<CardManagementPage />} />
+              <Route path="settings" element={<SettingsPage />} />
             </Routes>
           </AdminRoute>
         }

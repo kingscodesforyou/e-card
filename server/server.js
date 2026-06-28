@@ -31,10 +31,15 @@ const pool = new Pool({
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
+// 初始化配置服务
+initConfigService(pool);
+
 // 静态文件 - 字体目录
 app.use('/fonts', express.static(path.join(projectRoot, 'public/fonts')));
 
 import { generateGreetings, recommendTemplate, polishText, suggestColorScheme, generateBackground, generateTemplate, suggestLayout } from './aiRoutes.js';
+import { initConfigService, getConfig, getConfigDetail, getAllConfigs, setConfig } from './configService.js';
+import { rateLimiter } from './rateLimiter.js';
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 const JWT_EXPIRES = process.env.JWT_EXPIRES || '7d';
 
@@ -312,19 +317,19 @@ app.get('/api/template-styles', async (req, res) => {
 // =====================================================
 
 // 生成祝福语
-app.post('/api/ai/greeting', generateGreetings);
+app.post('/api/ai/greeting', rateLimiter, generateGreetings);
 // 智能模板推荐
-app.post('/api/ai/recommend', recommendTemplate);
+app.post('/api/ai/recommend', rateLimiter, recommendTemplate);
 // 文案润色/续写
-app.post('/api/ai/polish', polishText);
+app.post('/api/ai/polish', rateLimiter, polishText);
 // 配色方案建议
-app.post('/api/ai/color-scheme', suggestColorScheme);
+app.post('/api/ai/color-scheme', rateLimiter, suggestColorScheme);
 // 背景图生成
-app.post('/api/ai/generate-background', generateBackground);
+app.post('/api/ai/generate-background', rateLimiter, generateBackground);
 // 一句话生成模板
-app.post('/api/ai/generate-template', generateTemplate);
+app.post('/api/ai/generate-template', rateLimiter, generateTemplate);
 // 智能布局建议
-app.post('/api/ai/suggest-layout', suggestLayout);
+app.post('/api/ai/suggest-layout', rateLimiter, suggestLayout);
 
 // =====================================================
 // 字体相关 API
@@ -838,6 +843,70 @@ app.delete('/api/admin/cards/:id', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('删除贺卡错误:', error);
     res.status(500).json({ error: '删除贺卡失败' });
+  }
+});
+
+// =====================================================
+// 管理员系统配置管理
+// =====================================================
+
+// 获取所有系统配置
+app.get('/api/admin/configs', requireAuth, async (req, res) => {
+  try {
+    if (!req.user.is_admin) {
+      return res.status(403).json({ error: '需要管理员权限' });
+    }
+
+    const configs = await getAllConfigs();
+    res.json(configs);
+  } catch (error) {
+    console.error('获取配置列表错误:', error);
+    res.status(500).json({ error: '获取配置列表失败' });
+  }
+});
+
+// 获取指定配置详情
+app.get('/api/admin/configs/:key', requireAuth, async (req, res) => {
+  try {
+    if (!req.user.is_admin) {
+      return res.status(403).json({ error: '需要管理员权限' });
+    }
+
+    const config = await getConfigDetail(req.params.key);
+    if (!config) {
+      return res.status(404).json({ error: '配置项不存在' });
+    }
+
+    res.json(config);
+  } catch (error) {
+    console.error('获取配置错误:', error);
+    res.status(500).json({ error: '获取配置失败' });
+  }
+});
+
+// 更新配置值
+app.put('/api/admin/configs/:key', requireAuth, async (req, res) => {
+  try {
+    if (!req.user.is_admin) {
+      return res.status(403).json({ error: '需要管理员权限' });
+    }
+
+    const { value, description, type, group_name } = req.body;
+
+    if (value === undefined && description === undefined && type === undefined && group_name === undefined) {
+      return res.status(400).json({ error: '请提供要更新的字段' });
+    }
+
+    const result = await setConfig(req.params.key, value, { description, type, group_name });
+
+    if (!result.success) {
+      return res.status(500).json({ error: result.error || '更新配置失败' });
+    }
+
+    res.json({ success: true, message: '配置已更新，修改已实时生效' });
+  } catch (error) {
+    console.error('更新配置错误:', error);
+    res.status(500).json({ error: '更新配置失败' });
   }
 });
 
