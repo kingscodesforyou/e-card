@@ -1,6 +1,7 @@
 import { Plus, Copy, Trash2, GripVertical, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEditorStore } from '../../store';
 import { useState, useRef, useCallback } from 'react';
+import PageThumbnail from './PageThumbnail';
 
 const PagesPanel = () => {
   const {
@@ -129,30 +130,9 @@ const PagesPanel = () => {
               第 {index + 1} 页
             </div>
 
-            {/* 缩略图 */}
-            <div
-              className="h-48 bg-gradient-to-br from-gray-100 to-gray-200 relative"
-              style={{
-                backgroundImage: page.backgroundUrl ? `url(${page.backgroundUrl})` : undefined,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                backgroundColor: page.backgroundColor,
-              }}
-            >
-              {/* 元素缩略图预览 */}
-              {page.elements.length > 0 && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-sm text-gray-400">
-                    {page.elements.length} 个元素
-                  </div>
-                </div>
-              )}
-              {/* 音频标识 */}
-              {page.audioUrl && (
-                <div className="absolute bottom-2 left-2 bg-purple-500 text-white text-sm px-2 py-1 rounded">
-                  ♪ 音频
-                </div>
-              )}
+            {/* 缩略图 - 使用 PageThumbnail 渲染实际内容 */}
+            <div className="h-48 relative">
+              <PageThumbnail page={page} />
             </div>
 
             {/* 操作按钮 */}
