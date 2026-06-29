@@ -136,6 +136,7 @@ CREATE TABLE IF NOT EXISTS template_categories (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(50) NOT NULL UNIQUE,
     sort_order INTEGER DEFAULT 0,
+    availab BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -163,6 +164,7 @@ CREATE TABLE IF NOT EXISTS template_occasions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(50) NOT NULL UNIQUE,
     sort_order INTEGER DEFAULT 0,
+    availab BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -216,6 +218,7 @@ CREATE TABLE IF NOT EXISTS template_styles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(50) NOT NULL UNIQUE,
     sort_order INTEGER DEFAULT 0,
+    availab BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

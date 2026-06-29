@@ -1,7 +1,8 @@
-import { Type, ImageIcon, Sparkles, Trash2, Square, Circle as CircleIcon, Undo2, Redo2, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ChevronsLeftRight, ChevronsUpDown, Triangle, Minus, ArrowRight as ArrowRightIcon, Star, Copy, Group, Ungroup, Layers } from 'lucide-react';
+import { Type, ImageIcon, Sparkles, Trash2, Square, Circle as CircleIcon, Undo2, Redo2, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ChevronsLeftRight, ChevronsUpDown, Triangle, Minus, ArrowRight as ArrowRightIcon, Star, Copy, Group, Ungroup, Layers, LayoutDashboard } from 'lucide-react';
 import { useState } from 'react';
 import { useEditorStore } from '../../store';
 import { SHAPE_CONTENT } from '../../lib/elementStyle';
+import AILayoutSuggestions from '../ai/AILayoutSuggestions';
 
 const Toolbar = () => {
   const { selectedElementId, deleteElement, currentCard, updateElement, undo, redo, canUndo, canRedo, bringToFront, sendToBack, bringForward, sendBackward, groupElements, ungroupElement } = useEditorStore();
@@ -535,6 +536,11 @@ const Toolbar = () => {
           >
             <Trash2 className="w-5 h-5" />
           </button>
+        </div>
+
+        {/* AI 布局建议 */}
+        <div className="flex items-center gap-1 ml-2 pl-3 border-l border-gray-200">
+          <AILayoutSuggestions />
         </div>
       </div>
     </div>

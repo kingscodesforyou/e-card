@@ -3,6 +3,8 @@ import { X, ChevronDown, ChevronRight, Lock, Unlock, HelpCircle, RotateCcw, Crop
 import { useEditorStore } from '../../store';
 import { getFontDatabase, FONT_CATEGORIES, searchFonts, loadFontDatabase, type FontInfo, type FontCategory } from '../../lib/fonts';
 import type { ElementAnimation, CardElement } from '../../types';
+import { ai } from '../../lib/ai';
+import AITextActions from '../ai/AITextActions';
 
 
 const presetColors = ['#FFFFFF', '#FF0000', '#FFA500', '#FFFF00', '#00FF00', '#0000FF', '#87CEEB', '#800080', '#808080', '#000000'];
@@ -627,12 +629,20 @@ const PropertyPanel = () => {
 	        <div className="space-y-4">
 	          <div>
 	            <label className="block text-sm font-medium text-gray-700 mb-2">文字内容</label>
-	            <textarea
-	              value={selectedElement.content}
-	              onChange={(e) => updateElement(selectedElementId, { content: e.target.value })}
-	              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-	              rows={3}
-	            />
+            <textarea
+              value={selectedElement.content}
+              onChange={(e) => updateElement(selectedElementId, { content: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              rows={3}
+            />
+            {/* AI 文案处理 */}
+            <div className="mt-2">
+              <AITextActions
+                text={selectedElement.content}
+                elementId={selectedElementId}
+                onUpdate={(newContent) => updateElement(selectedElementId, { content: newContent })}
+              />
+            </div>
 	          </div>
 	          <div>
               <div className="flex items-center justify-between mb-2">

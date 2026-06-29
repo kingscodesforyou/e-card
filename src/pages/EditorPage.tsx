@@ -52,6 +52,9 @@ const EditorPage = () => {
   }, []);
 
   useEffect(() => {
+    // 确保编辑页面从顶部开始渲染，避免从其他页面跳转时保留滚动位置
+    window.scrollTo(0, 0);
+
     // 防止重复初始化（fix: templateList 变化导致的效果重复执行）
     if (initializedRef.current) return;
     initializedRef.current = true;

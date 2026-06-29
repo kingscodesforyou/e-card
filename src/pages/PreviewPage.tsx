@@ -222,9 +222,9 @@ const PreviewPage = () => {
             <div
               className={`rounded-2xl shadow-2xl overflow-hidden transition-all duration-300 ${getTransitionClass()}`}
               style={{
-                width: 'min(90vw, 400px)',
-                height: 'min(120vw, 560px)',
-                aspectRatio: '3/4',
+                width: 'min(90vw, 360px)',
+                height: 'min(calc(90vw * 16/9), 640px)',
+                aspectRatio: '9/16',
                 backgroundImage: currentPage.backgroundUrl ? `url(${currentPage.backgroundUrl})` : undefined,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',

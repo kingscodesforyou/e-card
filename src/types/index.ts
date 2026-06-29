@@ -136,6 +136,7 @@ export interface TemplateLabel {
   id: string;
   name: string;
   sort_order: number;
+  availab?: boolean;
   created_at: string;
 }
 

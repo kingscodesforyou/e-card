@@ -31,10 +31,15 @@ const pool = new Pool({
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
+// 初始化配置服务
+initConfigService(pool);
+
 // 静态文件 - 字体目录
 app.use('/fonts', express.static(path.join(projectRoot, 'public/fonts')));
 
-// JWT 配置
+import { generateGreetings, recommendTemplate, polishText, suggestColorScheme, generateBackground, generateTemplate, suggestLayout } from './aiRoutes.js';
+import { initConfigService, getConfig, getConfigDetail, getAllConfigs, setConfig } from './configService.js';
+import { rateLimiter } from './rateLimiter.js';
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 const JWT_EXPIRES = process.env.JWT_EXPIRES || '7d';
 
@@ -277,7 +282,7 @@ app.get('/api/templates/:id', async (req, res) => {
 // 获取所有分类
 app.get('/api/template-categories', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM template_categories ORDER BY sort_order ASC');
+    const result = await pool.query('SELECT * FROM template_categories WHERE availab = true ORDER BY sort_order ASC');
     res.json(result.rows);
   } catch (error) {
     console.error('获取分类错误:', error);
@@ -288,7 +293,7 @@ app.get('/api/template-categories', async (req, res) => {
 // 获取所有场合
 app.get('/api/template-occasions', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM template_occasions ORDER BY sort_order ASC');
+    const result = await pool.query('SELECT * FROM template_occasions WHERE availab = true ORDER BY sort_order ASC');
     res.json(result.rows);
   } catch (error) {
     console.error('获取场合错误:', error);
@@ -306,6 +311,25 @@ app.get('/api/template-styles', async (req, res) => {
     res.status(500).json({ error: '获取风格失败' });
   }
 });
+
+// =====================================================
+// AI 服务 API（Agnes）
+// =====================================================
+
+// 生成祝福语
+app.post('/api/ai/greeting', rateLimiter, generateGreetings);
+// 智能模板推荐
+app.post('/api/ai/recommend', rateLimiter, recommendTemplate);
+// 文案润色/续写
+app.post('/api/ai/polish', rateLimiter, polishText);
+// 配色方案建议
+app.post('/api/ai/color-scheme', rateLimiter, suggestColorScheme);
+// 背景图生成
+app.post('/api/ai/generate-background', rateLimiter, generateBackground);
+// 一句话生成模板
+app.post('/api/ai/generate-template', rateLimiter, generateTemplate);
+// 智能布局建议
+app.post('/api/ai/suggest-layout', rateLimiter, suggestLayout);
 
 // =====================================================
 // 字体相关 API
@@ -718,6 +742,112 @@ app.delete('/api/admin/templates/:id', requireAuth, async (req, res) => {
 });
 
 // =====================================================
+// 管理员标签管理（分类、场合、风格）
+// =====================================================
+
+const TABLE_MAP = {
+  categories: 'template_categories',
+  occasions: 'template_occasions',
+  styles: 'template_styles',
+};
+
+// 获取所有标签
+app.get('/api/admin/labels/:type', requireAuth, async (req, res) => {
+  try {
+    if (!req.user.is_admin) return res.status(403).json({ error: '需要管理员权限' });
+
+    const table = TABLE_MAP[req.params.type];
+    if (!table) return res.status(400).json({ error: '无效的标签类型' });
+
+    const result = await pool.query(`SELECT * FROM ${table} ORDER BY sort_order ASC`);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('获取标签错误:', error);
+    res.status(500).json({ error: '获取标签失败' });
+  }
+});
+
+// 创建标签
+app.post('/api/admin/labels/:type', requireAuth, async (req, res) => {
+  try {
+    if (!req.user.is_admin) return res.status(403).json({ error: '需要管理员权限' });
+
+    const table = TABLE_MAP[req.params.type];
+    if (!table) return res.status(400).json({ error: '无效的标签类型' });
+
+    const { name, sort_order, availab } = req.body;
+    if (!name) return res.status(400).json({ error: '名称不能为空' });
+
+    const result = await pool.query(
+      `INSERT INTO ${table} (name, sort_order, availab) VALUES ($1, $2, $3) RETURNING *`,
+      [name, sort_order || 0, availab !== undefined ? availab : true]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('创建标签错误:', error);
+    if (error.code === '23505') {
+      return res.status(409).json({ error: '该名称已存在' });
+    }
+    res.status(500).json({ error: '创建标签失败' });
+  }
+});
+
+// 更新标签
+app.put('/api/admin/labels/:type/:id', requireAuth, async (req, res) => {
+  try {
+    if (!req.user.is_admin) return res.status(403).json({ error: '需要管理员权限' });
+
+    const table = TABLE_MAP[req.params.type];
+    if (!table) return res.status(400).json({ error: '无效的标签类型' });
+
+    const { name, sort_order, availab } = req.body;
+    const result = await pool.query(
+      `UPDATE ${table} SET
+        name = COALESCE($1, name),
+        sort_order = COALESCE($2, sort_order),
+        availab = COALESCE($3, availab)
+       WHERE id = $4
+       RETURNING *`,
+      [name || null, sort_order ?? null, availab !== undefined ? availab : null, req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: '标签不存在' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('更新标签错误:', error);
+    if (error.code === '23505') {
+      return res.status(409).json({ error: '该名称已存在' });
+    }
+    res.status(500).json({ error: '更新标签失败' });
+  }
+});
+
+// 删除标签
+app.delete('/api/admin/labels/:type/:id', requireAuth, async (req, res) => {
+  try {
+    if (!req.user.is_admin) return res.status(403).json({ error: '需要管理员权限' });
+
+    const table = TABLE_MAP[req.params.type];
+    if (!table) return res.status(400).json({ error: '无效的标签类型' });
+
+    const result = await pool.query(`DELETE FROM ${table} WHERE id = $1 RETURNING id`, [req.params.id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: '标签不存在' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('删除标签错误:', error);
+    res.status(500).json({ error: '删除标签失败' });
+  }
+});
+
+// =====================================================
 // 管理员字体管理
 // =====================================================
 
@@ -819,6 +949,70 @@ app.delete('/api/admin/cards/:id', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('删除贺卡错误:', error);
     res.status(500).json({ error: '删除贺卡失败' });
+  }
+});
+
+// =====================================================
+// 管理员系统配置管理
+// =====================================================
+
+// 获取所有系统配置
+app.get('/api/admin/configs', requireAuth, async (req, res) => {
+  try {
+    if (!req.user.is_admin) {
+      return res.status(403).json({ error: '需要管理员权限' });
+    }
+
+    const configs = await getAllConfigs();
+    res.json(configs);
+  } catch (error) {
+    console.error('获取配置列表错误:', error);
+    res.status(500).json({ error: '获取配置列表失败' });
+  }
+});
+
+// 获取指定配置详情
+app.get('/api/admin/configs/:key', requireAuth, async (req, res) => {
+  try {
+    if (!req.user.is_admin) {
+      return res.status(403).json({ error: '需要管理员权限' });
+    }
+
+    const config = await getConfigDetail(req.params.key);
+    if (!config) {
+      return res.status(404).json({ error: '配置项不存在' });
+    }
+
+    res.json(config);
+  } catch (error) {
+    console.error('获取配置错误:', error);
+    res.status(500).json({ error: '获取配置失败' });
+  }
+});
+
+// 更新配置值
+app.put('/api/admin/configs/:key', requireAuth, async (req, res) => {
+  try {
+    if (!req.user.is_admin) {
+      return res.status(403).json({ error: '需要管理员权限' });
+    }
+
+    const { value, description, type, group_name } = req.body;
+
+    if (value === undefined && description === undefined && type === undefined && group_name === undefined) {
+      return res.status(400).json({ error: '请提供要更新的字段' });
+    }
+
+    const result = await setConfig(req.params.key, value, { description, type, group_name });
+
+    if (!result.success) {
+      return res.status(500).json({ error: result.error || '更新配置失败' });
+    }
+
+    res.json({ success: true, message: '配置已更新，修改已实时生效' });
+  } catch (error) {
+    console.error('更新配置错误:', error);
+    res.status(500).json({ error: '更新配置失败' });
   }
 });
 

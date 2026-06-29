@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Plus, Edit2, Trash2, Image, X, Palette } from 'lucide-react';
 import { admin, templates, templateLabels } from '../../utils/supabase';
 import type { Template } from '../../types';
+import AITemplateGenerator from '../../components/ai/AITemplateGenerator';
 
 const TemplateManagementPage = () => {
   const navigate = useNavigate();
@@ -165,6 +166,11 @@ const TemplateManagementPage = () => {
               className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
           </div>
+        </div>
+
+        {/* AI 一键生成模板 */}
+        <div className="px-4 pb-4">
+          <AITemplateGenerator onSaved={fetchTemplates} />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
