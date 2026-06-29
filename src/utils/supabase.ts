@@ -903,20 +903,37 @@ export const fonts = {
 // =====================================================
 
 // 模板标签 mock 数据（与数据库种子数据一致）
-const mockCategories = [
-  '金融理财', '教育培训', '政务融媒', '医疗保健', '美容健身',
-  '餐饮美食', '房产装修', '旅游出行', '休闲娱乐', '汽车行业',
-  '生活服务', '商超百货', '其他'
+const mockCategories: { name: string; availab: boolean }[] = [
+  { name: '金融理财', availab: true }, { name: '教育培训', availab: true },
+  { name: '政务融媒', availab: true }, { name: '医疗保健', availab: true },
+  { name: '美容健身', availab: true }, { name: '餐饮美食', availab: true },
+  { name: '房产装修', availab: true }, { name: '旅游出行', availab: true },
+  { name: '休闲娱乐', availab: true }, { name: '汽车行业', availab: true },
+  { name: '生活服务', availab: true }, { name: '商超百货', availab: true },
+  { name: '其他', availab: true },
 ];
-const mockOccasions = [
-  '商务邀请', '活动邀请', '宴会邀请', '人才招聘', '招生培训',
-  '党建公益', '营销卖货', '企业介绍', '企业期刊', '企业庆典',
-  '行政办公', '总结汇报', '通知公告', '祝福问候', '日签打卡',
-  '个人简历', '纪念相册', '攻略指南', '新闻资讯',
-  '建党节', '建军节', '七夕', '小暑', '大暑', '立秋', '处暑',
-  '国际禁毒日', '香港回归纪念日', '接吻日', '七七抗战纪念日',
-  '全国保险公众宣传日', '世界人口日', '中国航海日', '夏三伏',
-  '那达慕', '全国海洋宣传日', '全国特奥日', '人类月球日', '世界肝炎日'
+const mockOccasions: { name: string; availab: boolean }[] = [
+  { name: '商务邀请', availab: true }, { name: '活动邀请', availab: true },
+  { name: '宴会邀请', availab: true }, { name: '人才招聘', availab: true },
+  { name: '招生培训', availab: true }, { name: '党建公益', availab: true },
+  { name: '营销卖货', availab: true }, { name: '企业介绍', availab: true },
+  { name: '企业期刊', availab: true }, { name: '企业庆典', availab: true },
+  { name: '行政办公', availab: true }, { name: '总结汇报', availab: true },
+  { name: '通知公告', availab: true }, { name: '祝福问候', availab: true },
+  { name: '日签打卡', availab: true }, { name: '个人简历', availab: true },
+  { name: '纪念相册', availab: true }, { name: '攻略指南', availab: true },
+  { name: '新闻资讯', availab: true },
+  { name: '建党节', availab: true }, { name: '建军节', availab: true },
+  { name: '七夕', availab: true }, { name: '小暑', availab: true },
+  { name: '大暑', availab: true }, { name: '立秋', availab: true },
+  { name: '处暑', availab: true },
+  { name: '国际禁毒日', availab: true }, { name: '香港回归纪念日', availab: true },
+  { name: '接吻日', availab: true }, { name: '七七抗战纪念日', availab: true },
+  { name: '全国保险公众宣传日', availab: true }, { name: '世界人口日', availab: true },
+  { name: '中国航海日', availab: true }, { name: '夏三伏', availab: true },
+  { name: '那达慕', availab: true },
+  { name: '全国海洋宣传日', availab: true }, { name: '全国特奥日', availab: true },
+  { name: '人类月球日', availab: true }, { name: '世界肝炎日', availab: true },
 ];
 const mockStyles = [
   '简约', '商务', '中国风', '手绘', '卡通', '时尚', '清新',
@@ -928,36 +945,36 @@ const mockStyles = [
 export const templateLabels = {
   getCategories: async () => {
     if (isMockMode) {
-      return { data: mockCategories, error: null };
+      return { data: mockCategories.filter(item => item.availab).map(item => item.name), error: null };
     }
 
     if (useLocalApi) {
       try {
         const data = await apiRequest('/api/template-categories');
-        return { data: data.map((item: any) => item.name), error: null };
+        return { data: data.filter((item: any) => item.availab !== false).map((item: any) => item.name), error: null };
       } catch (error: any) {
         return { data: null, error: { message: error.message } };
       }
     }
 
-    return { data: mockCategories, error: null };
+    return { data: mockCategories.filter(item => item.availab).map(item => item.name), error: null };
   },
 
   getOccasions: async () => {
     if (isMockMode) {
-      return { data: mockOccasions, error: null };
+      return { data: mockOccasions.filter(item => item.availab).map(item => item.name), error: null };
     }
 
     if (useLocalApi) {
       try {
         const data = await apiRequest('/api/template-occasions');
-        return { data: data.map((item: any) => item.name), error: null };
+        return { data: data.filter((item: any) => item.availab !== false).map((item: any) => item.name), error: null };
       } catch (error: any) {
         return { data: null, error: { message: error.message } };
       }
     }
 
-    return { data: mockOccasions, error: null };
+    return { data: mockOccasions.filter(item => item.availab).map(item => item.name), error: null };
   },
 
   getStyles: async () => {

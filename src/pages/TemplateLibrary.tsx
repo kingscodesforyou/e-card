@@ -4,7 +4,6 @@ import { useTemplatesStore } from '../store';
 import { templates } from '../utils/supabase';
 import TemplateCard from '../components/templates/TemplateCard';
 import FilterPanel from '../components/templates/FilterPanel';
-import AIRecommendBar from '../components/ai/AIRecommendBar';
 import { Template } from '../types';
 
 const TemplateLibrary = () => {
@@ -67,11 +66,6 @@ const TemplateLibrary = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
           />
-        </div>
-
-        {/* AI 智能推荐条 */}
-        <div className="mb-6">
-          <AIRecommendBar />
         </div>
 
         <FilterPanel />

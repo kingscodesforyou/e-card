@@ -282,7 +282,7 @@ app.get('/api/templates/:id', async (req, res) => {
 // 获取所有分类
 app.get('/api/template-categories', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM template_categories ORDER BY sort_order ASC');
+    const result = await pool.query('SELECT * FROM template_categories WHERE availab = true ORDER BY sort_order ASC');
     res.json(result.rows);
   } catch (error) {
     console.error('获取分类错误:', error);
@@ -293,7 +293,7 @@ app.get('/api/template-categories', async (req, res) => {
 // 获取所有场合
 app.get('/api/template-occasions', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM template_occasions ORDER BY sort_order ASC');
+    const result = await pool.query('SELECT * FROM template_occasions WHERE availab = true ORDER BY sort_order ASC');
     res.json(result.rows);
   } catch (error) {
     console.error('获取场合错误:', error);
