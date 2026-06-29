@@ -996,6 +996,70 @@ export const templateLabels = {
 };
 
 // =====================================================
+// 管理员标签管理（分类、场合、风格 CRUD）
+// =====================================================
+
+type LabelType = 'categories' | 'occasions' | 'styles';
+
+export interface LabelItem {
+  id: string;
+  name: string;
+  sort_order: number;
+  availab: boolean;
+  created_at: string;
+}
+
+export const labelManagement = {
+  // 获取全部标签（含 availab 字段）
+  getAll: async (type: LabelType): Promise<{ data: LabelItem[] | null; error: any }> => {
+    try {
+      const data = await apiRequest(`/api/admin/labels/${type}`);
+      return { data, error: null };
+    } catch (error: any) {
+      return { data: null, error: { message: error.message } };
+    }
+  },
+
+  // 创建标签
+  create: async (type: LabelType, params: { name: string; sort_order?: number; availab?: boolean }): Promise<{ data: LabelItem | null; error: any }> => {
+    try {
+      const data = await apiRequest(`/api/admin/labels/${type}`, {
+        method: 'POST',
+        body: JSON.stringify(params),
+      });
+      return { data, error: null };
+    } catch (error: any) {
+      return { data: null, error: { message: error.message } };
+    }
+  },
+
+  // 更新标签
+  update: async (type: LabelType, id: string, params: { name?: string; sort_order?: number; availab?: boolean }): Promise<{ data: LabelItem | null; error: any }> => {
+    try {
+      const data = await apiRequest(`/api/admin/labels/${type}/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(params),
+      });
+      return { data, error: null };
+    } catch (error: any) {
+      return { data: null, error: { message: error.message } };
+    }
+  },
+
+  // 删除标签
+  remove: async (type: LabelType, id: string): Promise<{ success: boolean; error: any }> => {
+    try {
+      await apiRequest(`/api/admin/labels/${type}/${id}`, {
+        method: 'DELETE',
+      });
+      return { success: true, error: null };
+    } catch (error: any) {
+      return { success: false, error: { message: error.message } };
+    }
+  },
+};
+
+// =====================================================
 // 短信验证码 - 需要配置本地 API 或 Supabase
 // =====================================================
 

@@ -742,6 +742,112 @@ app.delete('/api/admin/templates/:id', requireAuth, async (req, res) => {
 });
 
 // =====================================================
+// 管理员标签管理（分类、场合、风格）
+// =====================================================
+
+const TABLE_MAP = {
+  categories: 'template_categories',
+  occasions: 'template_occasions',
+  styles: 'template_styles',
+};
+
+// 获取所有标签
+app.get('/api/admin/labels/:type', requireAuth, async (req, res) => {
+  try {
+    if (!req.user.is_admin) return res.status(403).json({ error: '需要管理员权限' });
+
+    const table = TABLE_MAP[req.params.type];
+    if (!table) return res.status(400).json({ error: '无效的标签类型' });
+
+    const result = await pool.query(`SELECT * FROM ${table} ORDER BY sort_order ASC`);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('获取标签错误:', error);
+    res.status(500).json({ error: '获取标签失败' });
+  }
+});
+
+// 创建标签
+app.post('/api/admin/labels/:type', requireAuth, async (req, res) => {
+  try {
+    if (!req.user.is_admin) return res.status(403).json({ error: '需要管理员权限' });
+
+    const table = TABLE_MAP[req.params.type];
+    if (!table) return res.status(400).json({ error: '无效的标签类型' });
+
+    const { name, sort_order, availab } = req.body;
+    if (!name) return res.status(400).json({ error: '名称不能为空' });
+
+    const result = await pool.query(
+      `INSERT INTO ${table} (name, sort_order, availab) VALUES ($1, $2, $3) RETURNING *`,
+      [name, sort_order || 0, availab !== undefined ? availab : true]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('创建标签错误:', error);
+    if (error.code === '23505') {
+      return res.status(409).json({ error: '该名称已存在' });
+    }
+    res.status(500).json({ error: '创建标签失败' });
+  }
+});
+
+// 更新标签
+app.put('/api/admin/labels/:type/:id', requireAuth, async (req, res) => {
+  try {
+    if (!req.user.is_admin) return res.status(403).json({ error: '需要管理员权限' });
+
+    const table = TABLE_MAP[req.params.type];
+    if (!table) return res.status(400).json({ error: '无效的标签类型' });
+
+    const { name, sort_order, availab } = req.body;
+    const result = await pool.query(
+      `UPDATE ${table} SET
+        name = COALESCE($1, name),
+        sort_order = COALESCE($2, sort_order),
+        availab = COALESCE($3, availab)
+       WHERE id = $4
+       RETURNING *`,
+      [name || null, sort_order ?? null, availab !== undefined ? availab : null, req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: '标签不存在' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('更新标签错误:', error);
+    if (error.code === '23505') {
+      return res.status(409).json({ error: '该名称已存在' });
+    }
+    res.status(500).json({ error: '更新标签失败' });
+  }
+});
+
+// 删除标签
+app.delete('/api/admin/labels/:type/:id', requireAuth, async (req, res) => {
+  try {
+    if (!req.user.is_admin) return res.status(403).json({ error: '需要管理员权限' });
+
+    const table = TABLE_MAP[req.params.type];
+    if (!table) return res.status(400).json({ error: '无效的标签类型' });
+
+    const result = await pool.query(`DELETE FROM ${table} WHERE id = $1 RETURNING id`, [req.params.id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: '标签不存在' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('删除标签错误:', error);
+    res.status(500).json({ error: '删除标签失败' });
+  }
+});
+
+// =====================================================
 // 管理员字体管理
 // =====================================================
 
