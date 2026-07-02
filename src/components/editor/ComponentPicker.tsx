@@ -1239,7 +1239,6 @@ const categories: Category[] = [
 const ComponentPicker = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedComponent, setSelectedComponent] = useState<ComponentItem | null>(null);
-  const [expandedCategory, setExpandedCategory] = useState<string>('visual');
   const menuRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<number | null>(null);
   const addElement = useEditorStore((state) => state.addElement);
@@ -1296,14 +1295,6 @@ const ComponentPicker = () => {
     setIsOpen(false);
   };
 
-  const handleCategoryHover = (categoryId: string) => {
-    setExpandedCategory(categoryId);
-    const category = categories.find(c => c.id === categoryId);
-    if (category?.components[0]) {
-      setSelectedComponent(category.components[0]);
-    }
-  };
-
   return (
     <div
       className="relative"
@@ -1320,13 +1311,13 @@ const ComponentPicker = () => {
       {isOpen && (
         <div
           ref={menuRef}
-          className="absolute top-full left-0 mt-1 w-[560px] bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-[200]"
+          className="absolute top-full left-0 mt-1 w-[960px] bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-[200] max-h-[500px]"
           onMouseEnter={handleMenuMouseEnter}
           onMouseLeave={handleMenuMouseLeave}
         >
-          <div className="flex">
-            <div className="w-52 border-r border-gray-100 bg-gray-50 p-4">
-              <div className="text-xs font-medium text-gray-500 mb-2 px-1">组件预览</div>
+          <div className="grid grid-cols-[220px_repeat(5,1fr)] gap-0 pt-4 overflow-y-auto h-full">
+            <div className="border-r border-gray-100 bg-gray-50 px-4 pb-4">
+              <div className="text-xs font-medium text-gray-500 mb-3 px-1">组件预览</div>
               <div className="w-full h-56 bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
                 {selectedComponent ? (
                   selectedComponent.preview
@@ -1355,47 +1346,32 @@ const ComponentPicker = () => {
               )}
             </div>
 
-            <div className="flex-1 p-3">
-              <div className="space-y-1">
-                {categories.map(category => (
-                  <div key={category.id} className="rounded-lg overflow-hidden border border-gray-100">
-                    <div
-                      className={`px-3 py-2 text-xs font-medium flex items-center gap-2 cursor-pointer transition-colors ${
-                        expandedCategory === category.id
-                          ? `${category.bgColor} ${category.color}`
+            {categories.map(category => (
+              <div key={category.id} className="px-3 pb-4 border-r border-gray-100 last:border-r-0">
+                <div className={`px-3 py-2 text-xs font-medium flex items-center gap-2 rounded-lg mb-2 ${category.bgColor} ${category.color}`}>
+                  {category.icon}
+                  {category.name}
+                  <span className="text-xs opacity-60 ml-auto">{category.components.length}</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  {category.components.map(component => (
+                    <button
+                      key={component.id}
+                      onClick={() => handleComponentSelect(component)}
+                      className={`flex flex-col items-center gap-1 px-2 py-2 rounded-md text-xs transition-all ${
+                        selectedComponent?.id === component.id
+                          ? `${category.bgColor} ${category.color} shadow-sm`
                           : 'hover:bg-gray-50 text-gray-600'
                       }`}
-                      onMouseEnter={() => handleCategoryHover(category.id)}
+                      onMouseEnter={() => handleComponentHover(component)}
                     >
-                      {category.icon}
-                      {category.name}
-                      <span className="text-xs opacity-60 ml-auto">{category.components.length}</span>
-                    </div>
-                    {expandedCategory === category.id && (
-                      <div className="px-2 py-2 bg-white">
-                        <div className="grid grid-cols-3 gap-1.5">
-                          {category.components.map(component => (
-                            <button
-                              key={component.id}
-                              onClick={() => handleComponentSelect(component)}
-                              className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-xs text-left transition-all ${
-                                selectedComponent?.id === component.id
-                                  ? `${category.bgColor} ${category.color} shadow-sm`
-                                  : 'hover:bg-gray-50 text-gray-600'
-                              }`}
-                              onMouseEnter={() => handleComponentHover(component)}
-                            >
-                              <span className="opacity-80">{component.icon}</span>
-                              <span className="truncate">{component.name}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                      <span className="opacity-80">{component.icon}</span>
+                      <span className="truncate text-center max-w-full">{component.name}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            ))}
           </div>
         </div>
       )}
