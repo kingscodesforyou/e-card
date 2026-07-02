@@ -613,6 +613,7 @@ const EditorPage = () => {
             >
               <Sparkles className="w-4 h-4" />
             </button>
+            <ComponentPicker />
           </div>
 
           {/* 形状菜单 */}
@@ -628,7 +629,7 @@ const EditorPage = () => {
               </svg>
             </button>
             {showShapeMenu && (
-              <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
+              <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-[100]">
                 <button
                   onClick={() => { addShape('rectangle'); setShowShapeMenu(false); }}
                   className="w-full px-4 py-2 flex items-center gap-2 hover:bg-gray-50 text-left text-sm text-gray-700"
@@ -888,9 +889,8 @@ const EditorPage = () => {
           </div>
         </div>
 
-        {/* 右侧：组件库 + 操作按钮 */}
+        {/* 右侧：操作按钮 */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          <ComponentPicker />
           <button
             onClick={handleSave}
             className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2 text-sm"

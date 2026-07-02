@@ -432,7 +432,7 @@ const TemplateEditorPage = () => {
               </svg>
             </button>
             {showShapeMenu && (
-              <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
+              <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-[100]">
                 <button
                   onClick={() => { addShape('rectangle'); setShowShapeMenu(false); }}
                   className="w-full px-4 py-2 flex items-center gap-2 hover:bg-gray-50 text-left text-sm text-gray-700"

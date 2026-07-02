@@ -777,17 +777,16 @@ const ComponentPicker = () => {
       onMouseLeave={handleMouseLeave}
     >
       <button
-        className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2 text-sm"
+        className="p-2 rounded-lg hover:bg-purple-50 text-gray-600 hover:text-purple-600 transition-all"
         title="组件库"
       >
         <Grid3X3 className="w-4 h-4" />
-        <span className="hidden sm:inline">组件库</span>
       </button>
 
       {isOpen && (
         <div
           ref={menuRef}
-          className="absolute top-full left-0 mt-1 w-[560px] bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-50"
+          className="absolute top-full left-0 mt-1 w-[560px] bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-[100]"
           onMouseEnter={handleMenuMouseEnter}
           onMouseLeave={handleMenuMouseLeave}
         >
