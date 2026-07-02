@@ -538,7 +538,7 @@ const EditorPage = () => {
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
       {/* 顶部工具栏 - 添加 z-index 确保不被遮挡 */}
-      <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between flex-shrink-0 z-50 shadow-sm">
+      <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between flex-shrink-0 z-[100] shadow-sm">
         {/* 左侧：返回 + 标题 */}
         <div className="flex items-center gap-3 flex-shrink-0">
           <button
@@ -561,7 +561,7 @@ const EditorPage = () => {
         </div>
 
         {/* 中间：工具按钮组 */}
-        <div className="flex items-center gap-1 flex-shrink-0 overflow-x-auto hide-scrollbar">
+        <div className="flex items-center gap-1 flex-shrink-0">
           {/* 撤销/重做 */}
           <div className="flex items-center gap-1 pr-2 border-r border-gray-200">
             <button
@@ -629,7 +629,7 @@ const EditorPage = () => {
               </svg>
             </button>
             {showShapeMenu && (
-              <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-[100]">
+              <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-[200]">
                 <button
                   onClick={() => { addShape('rectangle'); setShowShapeMenu(false); }}
                   className="w-full px-4 py-2 flex items-center gap-2 hover:bg-gray-50 text-left text-sm text-gray-700"
