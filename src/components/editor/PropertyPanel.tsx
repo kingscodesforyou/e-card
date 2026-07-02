@@ -5,6 +5,7 @@ import { getFontDatabase, FONT_CATEGORIES, searchFonts, loadFontDatabase, type F
 import type { ElementAnimation, CardElement } from '../../types';
 import { ai } from '../../lib/ai';
 import AITextActions from '../ai/AITextActions';
+import { getComponentPropertyEditor } from './ComponentPropertyEditor';
 
 
 const presetColors = ['#FFFFFF', '#FF0000', '#FFA500', '#FFFF00', '#00FF00', '#0000FF', '#87CEEB', '#800080', '#808080', '#000000'];
@@ -65,9 +66,24 @@ const PropertyPanel = () => {
       );
     }
 
+    // 组件库专属属性编辑面板
+    const componentEditor = getComponentPropertyEditor(selectedElement);
+
     if (selectedElement.type === 'image') {
       return (
         <div className="space-y-4">
+          {/* 组件专属编辑面板 */}
+          {componentEditor && (
+            <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200">
+              <div className="text-xs font-medium text-purple-600 mb-3">
+                {selectedElement.componentConfig?.componentType === 'puzzle' ? '🧩 拼图设置' :
+                 selectedElement.componentConfig?.componentType === 'carousel' ? '🎠 轮播图设置' :
+                 selectedElement.componentConfig?.componentType === 'pip' ? '🖼️ 画中画设置' :
+                 '📦 组件设置'}
+              </div>
+              {componentEditor}
+            </div>
+          )}
           <div className="flex gap-3">
             <div className="flex-1 h-32 bg-gray-100 rounded-lg flex items-center justify-center relative overflow-hidden">
               <div className="w-full h-full" style={{ backgroundImage: 'linear-gradient(45deg, #e5e7eb 25%, transparent 25%), linear-gradient(-45deg, #e5e7eb 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e5e7eb 75%), linear-gradient(-45deg, transparent 75%, #e5e7eb 75%)', backgroundSize: '20px 20px', backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px' }}>
@@ -627,6 +643,23 @@ const PropertyPanel = () => {
 	    if (selectedElement.type === 'text') {
 	      return (
 	        <div className="space-y-4">
+	          {/* 组件专属编辑面板 */}
+	          {componentEditor && (
+	            <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200">
+	              <div className="text-xs font-medium text-purple-600 mb-3">
+	                {selectedElement.componentConfig?.componentType === 'dynamicNumber' ? '🔢 动态数字设置' :
+	                 selectedElement.componentConfig?.componentType === 'flash' ? '⚡ 快闪设置' :
+	                 selectedElement.componentConfig?.componentType === 'timer' ? '⏱️ 计时器设置' :
+	                 selectedElement.componentConfig?.componentType === 'ageChange' ? '🎂 年龄改变设置' :
+	                 selectedElement.componentConfig?.componentType === 'realDate' ? '📅 实时日期' :
+	                 selectedElement.componentConfig?.componentType === 'weather' ? '🌤️ 天气设置' :
+	                 selectedElement.componentConfig?.componentType === 'realLocation' ? '📍 位置设置' :
+	                 selectedElement.componentConfig?.componentType === 'viewCount' ? '👁️ 浏览计数' :
+	                 '📦 组件设置'}
+	              </div>
+	              {componentEditor}
+	            </div>
+	          )}
 	          <div>
 	            <label className="block text-sm font-medium text-gray-700 mb-2">文字内容</label>
             <textarea
@@ -1250,6 +1283,30 @@ const PropertyPanel = () => {
 
       return (
         <div className="space-y-4">
+          {/* 组件专属编辑面板 */}
+          {componentEditor && (
+            <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200">
+              <div className="text-xs font-medium text-purple-600 mb-3">
+                {selectedElement.componentConfig?.componentType === 'drawingBoard' ? '🎨 画板设置' :
+                 selectedElement.componentConfig?.componentType === 'barrage' ? '💬 弹幕设置' :
+                 selectedElement.componentConfig?.componentType === 'messageBoard' ? '📝 留言板设置' :
+                 selectedElement.componentConfig?.componentType === 'chart' ? '📊 图表设置' :
+                 selectedElement.componentConfig?.componentType === 'simulateChat' ? '💭 对话设置' :
+                 selectedElement.componentConfig?.componentType === 'toc' ? '📋 目录设置' :
+                 selectedElement.componentConfig?.componentType === 'bottomMenu' ? '📱 菜单设置' :
+                 selectedElement.componentConfig?.componentType === 'pageJump' ? '🔗 跳转设置' :
+                 selectedElement.componentConfig?.componentType === 'randomEvent' ? '🎲 随机事件设置' :
+                 selectedElement.componentConfig?.componentType === 'cube' ? '🧊 魔方设置' :
+                 selectedElement.componentConfig?.componentType === 'map' ? '🗺️ 地图设置' :
+                 selectedElement.componentConfig?.componentType === 'like' ? '❤️ 点赞设置' :
+                 selectedElement.componentConfig?.componentType === 'weather' ? '🌤️ 天气设置' :
+                 selectedElement.componentConfig?.componentType === 'falling' ? '✨ 飘落物设置' :
+                 selectedElement.componentConfig?.componentType === 'gradient' ? '🌈 渐变设置' :
+                 '📦 组件设置'}
+              </div>
+              {componentEditor}
+            </div>
+          )}
           {isIcon && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">图标内容</label>

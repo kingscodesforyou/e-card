@@ -518,3 +518,57 @@ button:focus {
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* ===== 组件库动画 ===== */
+/* 弹幕滚动 */
+@keyframes barrage-scroll {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+
+/* 飘落物 */
+@keyframes falling-drop {
+  0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+}
+
+/* 快闪脉冲 */
+@keyframes flash-pulse {
+  0% { transform: scale(0.8); opacity: 0; }
+  50% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* 数字滚动 */
+@keyframes count-up {
+  0% { transform: translateY(100%); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+/* 碎裂效果 */
+@keyframes glass-break {
+  0% { clipPath: 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)'; }
+  100% { clipPath: 'polygon(10% 20%, 40% 5%, 80% 15%, 60% 40%, 90% 60%, 50% 80%, 20% 70%, 5% 45%)'; }
+}
+
+/* 重力感应模拟 */
+@keyframes gravity-float {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(5px, -3px); }
+  50% { transform: translate(-3px, 5px); }
+  75% { transform: translate(-5px, -2px); }
+}
+
+/* 涂抹揭示 */
+@keyframes scratch-reveal {
+  0% { mask-position: 0% 0%; }
+  100% { mask-position: 100% 100%; }
+}
+
+/* 指纹扫描 */
+@keyframes fingerprint-scan {
+  0% { transform: translateY(-100%); opacity: 0.8; }
+  50% { opacity: 1; }
+  100% { transform: translateY(100%); opacity: 0.8; }
+}

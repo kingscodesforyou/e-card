@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Grid3X3, Eye, MousePointer, Sparkles, Zap, Navigation, Image, PieChart, Calendar, MapPin, User, MessageSquare, Heart, ThumbsUp, Star, Play, RotateCcw, PenTool, Scan, Volume2, Music, Bookmark, FolderOpen, Menu, ChevronRight, Plus } from 'lucide-react';
 import { useEditorStore } from '../../store';
+import type { ComponentConfig, CardElement } from '../../types';
 
 interface ComponentItem {
   id: string;
@@ -8,13 +9,8 @@ interface ComponentItem {
   icon: React.ReactNode;
   description: string;
   preview: React.ReactNode;
-  elementData: {
-    type: 'text' | 'image' | 'shape' | 'icon';
-    content: string;
-    position: { x: number; y: number };
-    size?: { width: number; height: number };
-    style: Record<string, unknown>;
-  };
+  componentConfig: ComponentConfig;
+  elementData: Omit<CardElement, 'id'>;
 }
 
 interface Category {
@@ -41,7 +37,7 @@ const categories: Category[] = [
         id: 'visual-puzzle',
         name: '拼图',
         icon: <Grid3X3 className="w-4 h-4" />,
-        description: '多图拼接展示',
+        description: '多图拼接展示，可配置行列和间距',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="grid grid-cols-3 gap-0.5 w-20 h-20">
@@ -51,13 +47,25 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '拼图组件', position: { x: 25, y: 35 }, size: { width: 50, height: 30 }, style: { fontSize: 16, textAlign: 'center', color: '#333' } },
+        componentConfig: {
+          componentType: 'puzzle',
+          puzzleCols: 3,
+          puzzleGap: 2,
+          puzzleImages: [],
+        },
+        elementData: {
+          type: 'image',
+          content: '',
+          position: { x: 5, y: 20 },
+          size: { width: 90, height: 55 },
+          style: { backgroundColor: '#f0f0f0', borderRadius: 8 },
+        },
       },
       {
         id: 'visual-carousel',
         name: '轮播图',
         icon: <Play className="w-4 h-4" />,
-        description: '自动轮播图片',
+        description: '自动轮播展示多张图片',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="w-24 h-16 bg-gradient-to-r from-purple-400 to-pink-400 rounded-lg flex items-center justify-center relative overflow-hidden">
@@ -70,13 +78,25 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '轮播图组件', position: { x: 25, y: 35 }, size: { width: 50, height: 30 }, style: { fontSize: 16, textAlign: 'center', color: '#333' } },
+        componentConfig: {
+          componentType: 'carousel',
+          carouselImages: [],
+          carouselInterval: 3000,
+          carouselAutoPlay: true,
+        },
+        elementData: {
+          type: 'image',
+          content: '',
+          position: { x: 5, y: 20 },
+          size: { width: 90, height: 50 },
+          style: { backgroundColor: '#f5f5f5', borderRadius: 8 },
+        },
       },
       {
         id: 'visual-chart',
         name: '数据图表',
         icon: <PieChart className="w-4 h-4" />,
-        description: '可视化数据展示',
+        description: '可视化数据柱状图/饼图展示',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="flex items-end gap-1.5 h-16">
@@ -86,13 +106,30 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '图表组件', position: { x: 30, y: 40 }, size: { width: 40, height: 20 }, style: { fontSize: 16, textAlign: 'center', color: '#666' } },
+        componentConfig: {
+          componentType: 'chart',
+          chartType: 'bar',
+          chartData: [
+            { label: 'A', value: 40, color: '#8B5CF6' },
+            { label: 'B', value: 65, color: '#EC4899' },
+            { label: 'C', value: 85, color: '#06B6D4' },
+            { label: 'D', value: 55, color: '#F59E0B' },
+            { label: 'E', value: 70, color: '#10B981' },
+          ],
+        },
+        elementData: {
+          type: 'icon',
+          content: '',
+          position: { x: 10, y: 25 },
+          size: { width: 80, height: 50 },
+          style: { backgroundColor: '#ffffff', borderRadius: 8 },
+        },
       },
       {
         id: 'visual-cube',
         name: '立体魔方',
         icon: <Grid3X3 className="w-4 h-4" />,
-        description: '3D立体魔方效果',
+        description: '3D立体魔方旋转效果',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="relative w-16 h-16">
@@ -104,13 +141,23 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '魔方组件', position: { x: 30, y: 35 }, size: { width: 40, height: 30 }, style: { fontSize: 16, textAlign: 'center', color: '#333' } },
+        componentConfig: {
+          componentType: 'cube',
+          cubeFaces: ['#8B5CF6', '#EC4899', '#06B6D4', '#10B981', '#F59E0B', '#EF4444'],
+        },
+        elementData: {
+          type: 'icon',
+          content: '',
+          position: { x: 35, y: 30 },
+          size: { width: 30, height: 30 },
+          style: {},
+        },
       },
       {
         id: 'visual-wechat-avatar',
         name: '微信头像',
         icon: <User className="w-4 h-4" />,
-        description: '微信风格头像',
+        description: '微信风格圆形头像',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 shadow-md flex items-center justify-center">
@@ -118,13 +165,22 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'icon', content: '👤', position: { x: 40, y: 40 }, size: { width: 20, height: 20 }, style: { fontSize: 36, textAlign: 'center' } },
+        componentConfig: {
+          componentType: 'wechatAvatar',
+        },
+        elementData: {
+          type: 'image',
+          content: '',
+          position: { x: 38, y: 35 },
+          size: { width: 24, height: 24 },
+          style: { borderRadius: 9999, backgroundColor: '#e5e7eb' },
+        },
       },
       {
         id: 'visual-avatar-wall',
         name: '头像墙',
         icon: <User className="w-4 h-4" />,
-        description: '用户头像展示',
+        description: '多人头像展示墙',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="flex -space-x-3">
@@ -136,13 +192,23 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '👥', position: { x: 40, y: 40 }, size: { width: 20, height: 20 }, style: { fontSize: 32, textAlign: 'center' } },
+        componentConfig: {
+          componentType: 'avatarWall',
+          avatarUrls: [],
+        },
+        elementData: {
+          type: 'icon',
+          content: '',
+          position: { x: 15, y: 38 },
+          size: { width: 70, height: 15 },
+          style: {},
+        },
       },
       {
         id: 'visual-dynamic-number',
         name: '动态数字',
         icon: <PieChart className="w-4 h-4" />,
-        description: '动态变化数字',
+        description: '数字滚动动画效果',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="flex items-center gap-1">
@@ -151,13 +217,24 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '88', position: { x: 40, y: 40 }, size: { width: 20, height: 20 }, style: { fontSize: 32, fontWeight: 'bold', textAlign: 'center', color: '#8B5CF6' } },
+        componentConfig: {
+          componentType: 'dynamicNumber',
+          dynamicNumberTarget: 88,
+          dynamicNumberDuration: 2000,
+        },
+        elementData: {
+          type: 'text',
+          content: '0',
+          position: { x: 35, y: 40 },
+          size: { width: 30, height: 15 },
+          style: { fontSize: 36, fontWeight: 'bold', textAlign: 'center', color: '#8B5CF6' },
+        },
       },
       {
         id: 'visual-weather',
         name: '天气',
         icon: <Sparkles className="w-4 h-4" />,
-        description: '实时天气显示',
+        description: '实时天气信息显示',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="flex items-center gap-2">
@@ -169,13 +246,23 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '☀️ 26° 晴', position: { x: 35, y: 40 }, size: { width: 30, height: 20 }, style: { fontSize: 16, textAlign: 'center', color: '#333' } },
+        componentConfig: {
+          componentType: 'weather',
+          weatherCity: '北京',
+        },
+        elementData: {
+          type: 'text',
+          content: '☀️ 26° 晴',
+          position: { x: 35, y: 42 },
+          size: { width: 30, height: 12 },
+          style: { fontSize: 14, textAlign: 'center', color: '#333', backgroundColor: 'rgba(255,255,255,0.8)', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb', borderStyle: 'solid' },
+        },
       },
       {
         id: 'visual-real-date',
         name: '实时日期',
         icon: <Calendar className="w-4 h-4" />,
-        description: '动态显示日期',
+        description: '动态显示当前日期',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="bg-white rounded-lg shadow-sm p-2 border border-gray-200">
@@ -187,7 +274,16 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' }), position: { x: 30, y: 40 }, size: { width: 40, height: 20 }, style: { fontSize: 14, textAlign: 'center', color: '#333' } },
+        componentConfig: {
+          componentType: 'realDate',
+        },
+        elementData: {
+          type: 'text',
+          content: new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' }),
+          position: { x: 25, y: 35 },
+          size: { width: 50, height: 20 },
+          style: { fontSize: 14, textAlign: 'center', color: '#333', backgroundColor: '#ffffff', borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb', borderStyle: 'solid' },
+        },
       },
       {
         id: 'visual-real-location',
@@ -205,13 +301,23 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'icon', content: '📍', position: { x: 40, y: 40 }, size: { width: 20, height: 20 }, style: { fontSize: 32, textAlign: 'center' } },
+        componentConfig: {
+          componentType: 'realLocation',
+          mapAddress: '北京市朝阳区',
+        },
+        elementData: {
+          type: 'text',
+          content: '📍 北京市朝阳区',
+          position: { x: 25, y: 42 },
+          size: { width: 50, height: 12 },
+          style: { fontSize: 12, textAlign: 'center', color: '#333', backgroundColor: '#fef2f2', borderRadius: 12, borderWidth: 1, borderColor: '#fecaca', borderStyle: 'solid' },
+        },
       },
       {
         id: 'visual-timer',
-        name: '计时',
+        name: '计时器',
         icon: <RotateCcw className="w-4 h-4" />,
-        description: '计时器功能',
+        description: '正计时/倒计时功能',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="flex items-center gap-2">
@@ -223,7 +329,19 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '00:00', position: { x: 40, y: 45 }, size: { width: 20, height: 10 }, style: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', color: '#333' } },
+        componentConfig: {
+          componentType: 'timer',
+          timerStartFrom: 0,
+          timerCountUp: true,
+          timerRunning: true,
+        },
+        elementData: {
+          type: 'text',
+          content: '00:00',
+          position: { x: 30, y: 38 },
+          size: { width: 40, height: 15 },
+          style: { fontSize: 28, fontWeight: 'bold', textAlign: 'center', color: '#333', fontFamily: 'monospace' },
+        },
       },
     ],
   },
@@ -241,7 +359,7 @@ const categories: Category[] = [
         id: 'interact-drawing-board',
         name: '画板',
         icon: <PenTool className="w-4 h-4" />,
-        description: '自由绘画画板',
+        description: '自由涂鸦绘画画板',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="w-full rounded-xl bg-white shadow-sm border border-gray-100 p-3">
@@ -254,13 +372,25 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '画板组件', position: { x: 25, y: 35 }, size: { width: 50, height: 30 }, style: { fontSize: 16, textAlign: 'center', color: '#333' } },
+        componentConfig: {
+          componentType: 'drawingBoard',
+          canvasBgColor: '#ffffff',
+          canvasBrushColor: '#8B5CF6',
+          canvasBrushSize: 4,
+        },
+        elementData: {
+          type: 'icon',
+          content: '',
+          position: { x: 5, y: 25 },
+          size: { width: 90, height: 45 },
+          style: { backgroundColor: '#ffffff', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb', borderStyle: 'solid' },
+        },
       },
       {
         id: 'interact-screenshot',
         name: '点击截图',
         icon: <Image className="w-4 h-4" />,
-        description: '截图保存功能',
+        description: '点击按钮保存当前画面',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="text-center">
@@ -271,13 +401,23 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '截图组件', position: { x: 30, y: 35 }, size: { width: 40, height: 30 }, style: { fontSize: 16, textAlign: 'center', color: '#333' } },
+        componentConfig: {
+          componentType: 'screenshot',
+          screenshotLabel: '保存贺卡',
+        },
+        elementData: {
+          type: 'icon',
+          content: '',
+          position: { x: 35, y: 40 },
+          size: { width: 30, height: 20 },
+          style: { backgroundColor: '#f0fdf4', borderRadius: 12, borderWidth: 1, borderColor: '#bbf7d0', borderStyle: 'solid' },
+        },
       },
       {
         id: 'interact-message-board',
         name: '留言板',
         icon: <MessageSquare className="w-4 h-4" />,
-        description: '用户留言互动',
+        description: '用户留言互动区',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="w-full space-y-2">
@@ -296,7 +436,21 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '留言板组件', position: { x: 25, y: 35 }, size: { width: 50, height: 30 }, style: { fontSize: 16, textAlign: 'center', color: '#333' } },
+        componentConfig: {
+          componentType: 'messageBoard',
+          messages: [
+            { name: '小明', content: '好漂亮的贺卡！', time: '刚刚' },
+            { name: '小红', content: '谢谢 😊', time: '1分钟前' },
+          ],
+          messagePlaceholder: '写下你的祝福...',
+        },
+        elementData: {
+          type: 'icon',
+          content: '',
+          position: { x: 5, y: 25 },
+          size: { width: 90, height: 50 },
+          style: { backgroundColor: '#ffffff', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb', borderStyle: 'solid' },
+        },
       },
       {
         id: 'interact-barrage',
@@ -306,19 +460,31 @@ const categories: Category[] = [
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4 overflow-hidden">
             <div className="relative w-full">
-              <div className="text-xs text-purple-500 whitespace-nowrap animate-[slideInRight_2s_linear_infinite]">祝生日快乐！🎂</div>
-              <div className="text-xs text-pink-500 whitespace-nowrap animate-[slideInRight_2s_linear_infinite] mt-1" style={{ animationDelay: '0.8s' }}>永远开心！🎉</div>
-              <div className="text-xs text-blue-500 whitespace-nowrap animate-[slideInRight_2s_linear_infinite] mt-1" style={{ animationDelay: '1.6s' }}>万事如意！✨</div>
+              <div className="text-xs text-purple-500 whitespace-nowrap">祝生日快乐！🎂</div>
+              <div className="text-xs text-pink-500 whitespace-nowrap mt-1">永远开心！🎉</div>
+              <div className="text-xs text-blue-500 whitespace-nowrap mt-1">万事如意！✨</div>
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '弹幕组件', position: { x: 20, y: 30 }, size: { width: 60, height: 40 }, style: { fontSize: 14, textAlign: 'center', color: '#333' } },
+        componentConfig: {
+          componentType: 'barrage',
+          barrageMessages: ['祝生日快乐！🎂', '永远开心！🎉', '万事如意！✨', '天天好心情！💖'],
+          barrageSpeed: 8,
+          barrageColor: '#8B5CF6',
+        },
+        elementData: {
+          type: 'icon',
+          content: '',
+          position: { x: 5, y: 20 },
+          size: { width: 90, height: 60 },
+          style: {},
+        },
       },
       {
         id: 'interact-like',
         name: '点赞',
         icon: <Heart className="w-4 h-4" />,
-        description: '点赞互动功能',
+        description: '可点击的点赞按钮',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="flex flex-col items-center gap-1">
@@ -327,7 +493,18 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'icon', content: '❤️', position: { x: 40, y: 40 }, size: { width: 20, height: 20 }, style: { fontSize: 36, textAlign: 'center' } },
+        componentConfig: {
+          componentType: 'like',
+          likeCount: 0,
+          likeEnabled: true,
+        },
+        elementData: {
+          type: 'icon',
+          content: '❤️',
+          position: { x: 42, y: 40 },
+          size: { width: 16, height: 16 },
+          style: { fontSize: 32, textAlign: 'center' },
+        },
       },
       {
         id: 'interact-views',
@@ -342,13 +519,23 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '查看次数: 0', position: { x: 35, y: 45 }, size: { width: 30, height: 10 }, style: { fontSize: 14, textAlign: 'center', color: '#999' } },
+        componentConfig: {
+          componentType: 'viewCount',
+          viewCount: 0,
+        },
+        elementData: {
+          type: 'text',
+          content: '浏览 0 次',
+          position: { x: 35, y: 45 },
+          size: { width: 30, height: 8 },
+          style: { fontSize: 12, textAlign: 'center', color: '#999' },
+        },
       },
       {
         id: 'interact-voice',
         name: '语音',
         icon: <Volume2 className="w-4 h-4" />,
-        description: '语音录制播放',
+        description: '语音录制与播放',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="text-center">
@@ -363,13 +550,24 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'icon', content: '🎤', position: { x: 40, y: 40 }, size: { width: 20, height: 20 }, style: { fontSize: 36, textAlign: 'center' } },
+        componentConfig: {
+          componentType: 'voice',
+          audioSrc: '',
+          audioDuration: 0,
+        },
+        elementData: {
+          type: 'icon',
+          content: '',
+          position: { x: 38, y: 38 },
+          size: { width: 24, height: 24 },
+          style: { backgroundColor: '#f3e8ff', borderRadius: 9999, borderWidth: 1, borderColor: '#e9d5ff', borderStyle: 'solid' },
+        },
       },
       {
         id: 'interact-photo',
         name: '照片',
         icon: <Image className="w-4 h-4" />,
-        description: '拍照上传功能',
+        description: '拍照上传功能入口',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="w-full h-full rounded-xl bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center relative">
@@ -378,13 +576,23 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '照片组件', position: { x: 25, y: 30 }, size: { width: 50, height: 40 }, style: { fontSize: 16, textAlign: 'center', color: '#333' } },
+        componentConfig: {
+          componentType: 'photo',
+          photoUrl: '',
+        },
+        elementData: {
+          type: 'image',
+          content: '',
+          position: { x: 5, y: 20 },
+          size: { width: 90, height: 55 },
+          style: { backgroundColor: '#e0e7ff', borderRadius: 12 },
+        },
       },
       {
         id: 'interact-sound-effect',
         name: '音效',
         icon: <Volume2 className="w-4 h-4" />,
-        description: '音效播放控制',
+        description: '点击触发音效播放',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="flex items-center gap-3">
@@ -395,7 +603,18 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'icon', content: '🔊', position: { x: 40, y: 40 }, size: { width: 20, height: 20 }, style: { fontSize: 32, textAlign: 'center' } },
+        componentConfig: {
+          componentType: 'soundEffect',
+          soundEffectSrc: '',
+          soundEffectVolume: 0.8,
+        },
+        elementData: {
+          type: 'icon',
+          content: '',
+          position: { x: 38, y: 42 },
+          size: { width: 24, height: 12 },
+          style: { backgroundColor: '#f3e8ff', borderRadius: 24, borderWidth: 1, borderColor: '#e9d5ff', borderStyle: 'solid' },
+        },
       },
       {
         id: 'interact-map',
@@ -409,7 +628,20 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'icon', content: '🗺️', position: { x: 40, y: 40 }, size: { width: 20, height: 20 }, style: { fontSize: 36, textAlign: 'center' } },
+        componentConfig: {
+          componentType: 'map',
+          mapLat: 39.9042,
+          mapLng: 116.4074,
+          mapZoom: 14,
+          mapAddress: '北京市',
+        },
+        elementData: {
+          type: 'icon',
+          content: '',
+          position: { x: 5, y: 25 },
+          size: { width: 90, height: 50 },
+          style: { backgroundColor: '#ecfdf5', borderRadius: 12, borderWidth: 1, borderColor: '#a7f3d0', borderStyle: 'solid' },
+        },
       },
     ],
   },
@@ -427,7 +659,7 @@ const categories: Category[] = [
         id: 'fun-age-change',
         name: '年龄改变',
         icon: <User className="w-4 h-4" />,
-        description: '趣味年龄变化',
+        description: '趣味年龄变化动画',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="flex items-center gap-2">
@@ -437,13 +669,24 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '年龄改变组件', position: { x: 30, y: 40 }, size: { width: 40, height: 20 }, style: { fontSize: 16, textAlign: 'center', color: '#333' } },
+        componentConfig: {
+          componentType: 'ageChange',
+          ageFrom: 18,
+          ageTo: 25,
+        },
+        elementData: {
+          type: 'text',
+          content: '18 → 25',
+          position: { x: 30, y: 40 },
+          size: { width: 40, height: 15 },
+          style: { fontSize: 20, fontWeight: 'bold', textAlign: 'center', color: '#8B5CF6' },
+        },
       },
       {
         id: 'fun-face-recognition',
         name: '人脸识别',
         icon: <Scan className="w-4 h-4" />,
-        description: '人脸识别检测',
+        description: '人脸识别检测区域',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center border-2 border-dashed border-purple-300">
@@ -455,13 +698,23 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '人脸识别', position: { x: 30, y: 35 }, size: { width: 40, height: 30 }, style: { fontSize: 16, textAlign: 'center', color: '#333' } },
+        componentConfig: {
+          componentType: 'faceRecognition',
+          faceImageUrl: '',
+        },
+        elementData: {
+          type: 'icon',
+          content: '',
+          position: { x: 35, y: 30 },
+          size: { width: 30, height: 30 },
+          style: { backgroundColor: '#f3e8ff', borderRadius: 9999, borderWidth: 2, borderColor: '#e9d5ff', borderStyle: 'dashed' },
+        },
       },
       {
         id: 'fun-face-merge',
         name: '人脸融合',
         icon: <User className="w-4 h-4" />,
-        description: '趣味人脸融合',
+        description: '趣味人脸融合效果',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="flex items-center gap-1">
@@ -473,13 +726,22 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '人脸融合', position: { x: 30, y: 40 }, size: { width: 40, height: 20 }, style: { fontSize: 16, textAlign: 'center', color: '#333' } },
+        componentConfig: {
+          componentType: 'faceMerge',
+        },
+        elementData: {
+          type: 'icon',
+          content: '',
+          position: { x: 20, y: 38 },
+          size: { width: 60, height: 20 },
+          style: { backgroundColor: '#fdf2f8', borderRadius: 24, borderWidth: 1, borderColor: '#fbcfe8', borderStyle: 'solid' },
+        },
       },
       {
         id: 'fun-simulate-chat',
         name: '模拟对话',
         icon: <MessageSquare className="w-4 h-4" />,
-        description: '模拟聊天对话',
+        description: '模拟微信聊天对话',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="w-full space-y-1.5">
@@ -494,13 +756,26 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '模拟对话', position: { x: 25, y: 35 }, size: { width: 50, height: 30 }, style: { fontSize: 16, textAlign: 'center', color: '#333' } },
+        componentConfig: {
+          componentType: 'simulateChat',
+          chatMessages: [
+            { sender: 'TA', content: '你好呀！', isMe: false },
+            { sender: '我', content: '节日快乐！', isMe: true },
+          ],
+        },
+        elementData: {
+          type: 'icon',
+          content: '',
+          position: { x: 5, y: 25 },
+          size: { width: 90, height: 50 },
+          style: { backgroundColor: '#ffffff', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb', borderStyle: 'solid' },
+        },
       },
       {
         id: 'fun-voice-assistant',
         name: '语音助手',
         icon: <Volume2 className="w-4 h-4" />,
-        description: '语音交互助手',
+        description: '语音交互助手入口',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="text-center">
@@ -512,13 +787,22 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '语音助手', position: { x: 30, y: 35 }, size: { width: 40, height: 30 }, style: { fontSize: 14, textAlign: 'center', color: '#333' } },
+        componentConfig: {
+          componentType: 'voiceAssistant',
+        },
+        elementData: {
+          type: 'icon',
+          content: '',
+          position: { x: 38, y: 38 },
+          size: { width: 24, height: 24 },
+          style: { backgroundColor: '#eff6ff', borderRadius: 16, borderWidth: 1, borderColor: '#bfdbfe', borderStyle: 'solid' },
+        },
       },
       {
         id: 'fun-random-event',
         name: '随机事件',
         icon: <Sparkles className="w-4 h-4" />,
-        description: '随机抽取结果',
+        description: '点击随机抽取结果',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="text-center">
@@ -527,13 +811,24 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '随机事件', position: { x: 35, y: 40 }, size: { width: 30, height: 20 }, style: { fontSize: 16, textAlign: 'center', color: '#333' } },
+        componentConfig: {
+          componentType: 'randomEvent',
+          randomOptions: ['大吉', '中吉', '小吉', '末吉', '凶'],
+          randomResult: '',
+        },
+        elementData: {
+          type: 'icon',
+          content: '',
+          position: { x: 30, y: 38 },
+          size: { width: 40, height: 20 },
+          style: { backgroundColor: '#f3e8ff', borderRadius: 12, borderWidth: 1, borderColor: '#e9d5ff', borderStyle: 'solid' },
+        },
       },
       {
         id: 'fun-flash',
         name: '快闪',
         icon: <Zap className="w-4 h-4" />,
-        description: '快闪展示效果',
+        description: '文字快闪展示效果',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="relative">
@@ -544,13 +839,24 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'icon', content: '⭐', position: { x: 40, y: 40 }, size: { width: 20, height: 20 }, style: { fontSize: 36, textAlign: 'center' } },
+        componentConfig: {
+          componentType: 'flash',
+          flashTexts: ['惊喜', '快乐', '幸福', '美好'],
+          flashInterval: 800,
+        },
+        elementData: {
+          type: 'text',
+          content: '惊喜',
+          position: { x: 30, y: 38 },
+          size: { width: 40, height: 20 },
+          style: { fontSize: 32, fontWeight: 'bold', textAlign: 'center', color: '#f59e0b' },
+        },
       },
       {
         id: 'fun-pip',
         name: '画中画',
         icon: <Image className="w-4 h-4" />,
-        description: '画中画效果',
+        description: '主画面+子画面嵌套效果',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="relative w-full h-full rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
@@ -561,13 +867,24 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '画中画组件', position: { x: 25, y: 30 }, size: { width: 50, height: 40 }, style: { fontSize: 16, textAlign: 'center', color: '#333' } },
+        componentConfig: {
+          componentType: 'pip',
+          pipMainImage: '',
+          pipSubImage: '',
+        },
+        elementData: {
+          type: 'image',
+          content: '',
+          position: { x: 5, y: 20 },
+          size: { width: 90, height: 55 },
+          style: { backgroundColor: '#f3f4f6', borderRadius: 12 },
+        },
       },
       {
         id: 'fun-word-art',
         name: '自说字画',
         icon: <PenTool className="w-4 h-4" />,
-        description: '手写字画创作',
+        description: '手写风格字画展示',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="text-center">
@@ -579,7 +896,18 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '字画创作', position: { x: 30, y: 35 }, size: { width: 40, height: 30 }, style: { fontSize: 18, textAlign: 'center', color: '#333' } },
+        componentConfig: {
+          componentType: 'wordArt',
+          wordArtText: '字画',
+          wordArtStyle: 'handwriting',
+        },
+        elementData: {
+          type: 'text',
+          content: '字画',
+          position: { x: 30, y: 35 },
+          size: { width: 40, height: 25 },
+          style: { fontSize: 28, fontWeight: 'bold', textAlign: 'center', color: '#8B5CF6', fontStyle: 'italic' },
+        },
       },
     ],
   },
@@ -597,7 +925,7 @@ const categories: Category[] = [
         id: 'effect-paint',
         name: '涂抹',
         icon: <PenTool className="w-4 h-4" />,
-        description: '涂抹擦除效果',
+        description: '涂抹擦除揭示效果',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="relative w-full h-full rounded-xl bg-white shadow-sm border border-gray-100 overflow-hidden">
@@ -612,13 +940,24 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '涂抹组件', position: { x: 30, y: 35 }, size: { width: 40, height: 30 }, style: { fontSize: 16, textAlign: 'center', color: '#333' } },
+        componentConfig: {
+          componentType: 'scratch',
+          scratchBgColor: '#8B5CF6',
+          scratchRevealImage: '',
+        },
+        elementData: {
+          type: 'icon',
+          content: '',
+          position: { x: 10, y: 25 },
+          size: { width: 80, height: 45 },
+          style: { backgroundColor: '#8B5CF6', borderRadius: 12 },
+        },
       },
       {
         id: 'effect-fingerprint',
         name: '指纹',
         icon: <Scan className="w-4 h-4" />,
-        description: '指纹识别效果',
+        description: '指纹识别动效',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="text-center">
@@ -629,13 +968,23 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '指纹组件', position: { x: 35, y: 40 }, size: { width: 30, height: 20 }, style: { fontSize: 14, textAlign: 'center', color: '#333' } },
+        componentConfig: {
+          componentType: 'fingerprint',
+          fingerprintLabel: '请按指纹',
+        },
+        elementData: {
+          type: 'icon',
+          content: '',
+          position: { x: 38, y: 38 },
+          size: { width: 24, height: 24 },
+          style: { backgroundColor: '#f3e8ff', borderRadius: 9999 },
+        },
       },
       {
         id: 'effect-falling',
         name: '飘落物',
         icon: <Sparkles className="w-4 h-4" />,
-        description: '飘落动画效果',
+        description: '飘落动画粒子效果',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4 overflow-hidden">
             <div className="relative w-full h-full">
@@ -647,13 +996,24 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'icon', content: '❄️', position: { x: 40, y: 40 }, size: { width: 20, height: 20 }, style: { fontSize: 32, textAlign: 'center' } },
+        componentConfig: {
+          componentType: 'falling',
+          fallingType: 'confetti',
+          fallingItems: ['🎉', '🎊', '✨', '💫', '🌟'],
+        },
+        elementData: {
+          type: 'icon',
+          content: '',
+          position: { x: 0, y: 0 },
+          size: { width: 100, height: 100 },
+          style: { pointerEvents: 'none' },
+        },
       },
       {
         id: 'effect-gradient',
         name: '渐变',
         icon: <Sparkles className="w-4 h-4" />,
-        description: '渐变色彩效果',
+        description: '渐变色彩背景效果',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="w-full h-full rounded-xl bg-gradient-to-br from-purple-400 via-pink-400 to-blue-400 shadow-md flex items-center justify-center">
@@ -661,13 +1021,24 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '渐变效果', position: { x: 30, y: 35 }, size: { width: 40, height: 30 }, style: { fontSize: 16, textAlign: 'center', color: '#fff' } },
+        componentConfig: {
+          componentType: 'gradient',
+          gradientColors: ['#8B5CF6', '#EC4899', '#06B6D4'],
+          gradientDirection: 'to bottom right',
+        },
+        elementData: {
+          type: 'shape',
+          content: 'rectangle',
+          position: { x: 5, y: 15 },
+          size: { width: 90, height: 65 },
+          style: { backgroundColor: '#8B5CF6', borderRadius: 16 },
+        },
       },
       {
         id: 'effect-gravity',
         name: '重力感应',
         icon: <RotateCcw className="w-4 h-4" />,
-        description: '重力感应效果',
+        description: '随设备倾斜移动元素',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="text-center">
@@ -680,13 +1051,22 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '重力感应', position: { x: 35, y: 40 }, size: { width: 30, height: 20 }, style: { fontSize: 14, textAlign: 'center', color: '#333' } },
+        componentConfig: {
+          componentType: 'gravity',
+        },
+        elementData: {
+          type: 'icon',
+          content: '',
+          position: { x: 38, y: 38 },
+          size: { width: 24, height: 24 },
+          style: {},
+        },
       },
       {
         id: 'effect-break-glass',
         name: '砸玻璃',
         icon: <Zap className="w-4 h-4" />,
-        description: '砸玻璃碎裂效果',
+        description: '点击碎裂玻璃效果',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="relative">
@@ -700,7 +1080,17 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'icon', content: '💎', position: { x: 40, y: 40 }, size: { width: 20, height: 20 }, style: { fontSize: 36, textAlign: 'center' } },
+        componentConfig: {
+          componentType: 'breakGlass',
+          glassImageUrl: '',
+        },
+        elementData: {
+          type: 'icon',
+          content: '',
+          position: { x: 35, y: 35 },
+          size: { width: 30, height: 30 },
+          style: { backgroundColor: '#e0f2fe', borderRadius: 16 },
+        },
       },
     ],
   },
@@ -718,7 +1108,7 @@ const categories: Category[] = [
         id: 'nav-page-jump',
         name: '页面跳转',
         icon: <ChevronRight className="w-4 h-4" />,
-        description: '页面跳转导航',
+        description: '点击跳转到指定页面',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="flex items-center gap-2 bg-teal-50 px-3 py-2 rounded-xl">
@@ -728,13 +1118,24 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '页面跳转', position: { x: 30, y: 40 }, size: { width: 40, height: 20 }, style: { fontSize: 16, textAlign: 'center', color: '#333' } },
+        componentConfig: {
+          componentType: 'pageJump',
+          jumpTargetPage: 1,
+          jumpLabel: '前往下一页',
+        },
+        elementData: {
+          type: 'icon',
+          content: '',
+          position: { x: 30, y: 42 },
+          size: { width: 40, height: 10 },
+          style: { backgroundColor: '#f0fdfa', borderRadius: 12, borderWidth: 1, borderColor: '#99f6e4', borderStyle: 'solid' },
+        },
       },
       {
         id: 'nav-document',
         name: '文档',
         icon: <Bookmark className="w-4 h-4" />,
-        description: '文档展示组件',
+        description: '文档内容展示组件',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="w-full rounded-xl bg-white shadow-sm border border-gray-100 p-3">
@@ -750,13 +1151,22 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '文档组件', position: { x: 25, y: 30 }, size: { width: 50, height: 40 }, style: { fontSize: 16, textAlign: 'center', color: '#333' } },
+        componentConfig: {
+          componentType: 'document',
+        },
+        elementData: {
+          type: 'icon',
+          content: '',
+          position: { x: 5, y: 25 },
+          size: { width: 90, height: 50 },
+          style: { backgroundColor: '#ffffff', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb', borderStyle: 'solid' },
+        },
       },
       {
         id: 'nav-toc',
         name: '目录',
         icon: <FolderOpen className="w-4 h-4" />,
-        description: '内容目录导航',
+        description: '页面内容目录导航',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="w-full space-y-1.5">
@@ -769,13 +1179,28 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '目录组件', position: { x: 30, y: 35 }, size: { width: 40, height: 30 }, style: { fontSize: 16, textAlign: 'center', color: '#333' } },
+        componentConfig: {
+          componentType: 'toc',
+          tocItems: [
+            { title: '封面', pageIndex: 0 },
+            { title: '祝福语', pageIndex: 1 },
+            { title: '回忆', pageIndex: 2 },
+            { title: '寄语', pageIndex: 3 },
+          ],
+        },
+        elementData: {
+          type: 'icon',
+          content: '',
+          position: { x: 10, y: 25 },
+          size: { width: 35, height: 45 },
+          style: { backgroundColor: '#ffffff', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb', borderStyle: 'solid' },
+        },
       },
       {
         id: 'nav-bottom-menu',
         name: '底部菜单',
         icon: <Menu className="w-4 h-4" />,
-        description: '底部导航菜单',
+        description: '底部导航菜单栏',
         preview: (
           <div className="w-full h-full flex items-center justify-center p-4">
             <div className="w-full rounded-xl bg-white shadow-sm border border-gray-100 overflow-hidden">
@@ -791,12 +1216,25 @@ const categories: Category[] = [
             </div>
           </div>
         ),
-        elementData: { type: 'text', content: '底部菜单', position: { x: 25, y: 35 }, size: { width: 50, height: 30 }, style: { fontSize: 14, textAlign: 'center', color: '#333' } },
+        componentConfig: {
+          componentType: 'bottomMenu',
+          menuItems: [
+            { label: '首页', icon: 'home', target: 'page1' },
+            { label: '发现', icon: 'compass', target: 'page2' },
+            { label: '我的', icon: 'user', target: 'page3' },
+          ],
+        },
+        elementData: {
+          type: 'icon',
+          content: '',
+          position: { x: 0, y: 88 },
+          size: { width: 100, height: 12 },
+          style: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e5e7eb', borderStyle: 'solid' },
+        },
       },
     ],
   },
 ];
-
 
 const ComponentPicker = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -850,7 +1288,11 @@ const ComponentPicker = () => {
   };
 
   const handleComponentSelect = (component: ComponentItem) => {
-    addElement(component.elementData);
+    const elementWithConfig = {
+      ...component.elementData,
+      componentConfig: component.componentConfig,
+    };
+    addElement(elementWithConfig);
     setIsOpen(false);
   };
 

@@ -2,6 +2,7 @@ import { useState, useMemo, memo } from 'react';
 import { useEditorStore } from '../../store';
 import { CardElement } from '../../types';
 import { getElementVisualStyle } from '../../lib/elementStyle';
+import { renderComponent } from './ComponentRenderer';
 
 const Canvas = memo(function Canvas() {
   const { 
@@ -180,6 +181,9 @@ const Canvas = memo(function Canvas() {
       </>
     );
 
+    // 检查是否是组件库的高级组件
+    const componentContent = element.componentConfig ? renderComponent(element) : null;
+
     if (element.type === 'text') {
       return (
         <div
@@ -190,7 +194,7 @@ const Canvas = memo(function Canvas() {
           onMouseDown={(e) => handleMouseDown(e, element)}
           className={`canvas-element ${isSelected ? 'ring-2 ring-purple-500' : element.selected ? 'ring-2 ring-cyan-400' : ''} px-2 py-1 select-none ${element.style.fontStyle === 'italic' ? 'italic' : ''}`}
         >
-          {element.content}
+          {componentContent || element.content}
           {selectedControls}
         </div>
       );
@@ -206,12 +210,14 @@ const Canvas = memo(function Canvas() {
           onMouseDown={(e) => handleMouseDown(e, element)}
           className={`canvas-element ${isSelected ? 'ring-2 ring-purple-500' : element.selected ? 'ring-2 ring-cyan-400' : ''} select-none`}
         >
-          <img
-            src={element.content}
-            alt=""
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-            draggable={false}
-          />
+          {componentContent || (
+            <img
+              src={element.content}
+              alt=""
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              draggable={false}
+            />
+          )}
           {selectedControls}
         </div>
       );
@@ -227,6 +233,7 @@ const Canvas = memo(function Canvas() {
           onMouseDown={(e) => handleMouseDown(e, element)}
           className={`canvas-element ${isSelected ? 'ring-2 ring-purple-500' : element.selected ? 'ring-2 ring-cyan-400' : ''} select-none`}
         >
+          {componentContent}
           {selectedControls}
         </div>
       );
@@ -247,7 +254,7 @@ const Canvas = memo(function Canvas() {
           onMouseDown={(e) => handleMouseDown(e, element)}
           className={`canvas-element ${isSelected ? 'ring-2 ring-purple-500' : element.selected ? 'ring-2 ring-cyan-400' : ''} select-none`}
         >
-          {element.content}
+          {componentContent || element.content}
           {selectedControls}
         </div>
       );

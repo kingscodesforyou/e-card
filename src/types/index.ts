@@ -9,6 +9,76 @@ export interface ElementAnimation {
   category: 'enter' | 'emphasis' | 'exit';
 }
 
+// 组件库高级组件配置
+export interface ComponentConfig {
+  componentType: string;
+  puzzleImages?: string[];
+  puzzleCols?: number;
+  puzzleGap?: number;
+  carouselImages?: string[];
+  carouselInterval?: number;
+  carouselAutoPlay?: boolean;
+  barrageMessages?: string[];
+  barrageSpeed?: number;
+  barrageColor?: string;
+  messages?: { name: string; avatar?: string; content: string; time: string }[];
+  messagePlaceholder?: string;
+  likeCount?: number;
+  likeEnabled?: boolean;
+  timerStartFrom?: number;
+  timerCountUp?: boolean;
+  timerRunning?: boolean;
+  canvasBgColor?: string;
+  canvasBrushColor?: string;
+  canvasBrushSize?: number;
+  audioSrc?: string;
+  audioDuration?: number;
+  mapLat?: number;
+  mapLng?: number;
+  mapZoom?: number;
+  mapAddress?: string;
+  chartType?: 'bar' | 'pie' | 'line';
+  chartData?: { label: string; value: number; color?: string }[];
+  avatarUrls?: string[];
+  weatherCity?: string;
+  countdownTarget?: string;
+  jumpTargetPage?: number;
+  jumpTargetUrl?: string;
+  jumpLabel?: string;
+  menuItems?: { label: string; icon: string; target: string }[];
+  flashTexts?: string[];
+  flashInterval?: number;
+  fallingItems?: string[];
+  fallingType?: 'snow' | 'confetti' | 'hearts' | 'stars' | 'custom';
+  gradientColors?: string[];
+  gradientDirection?: string;
+  chatMessages?: { sender: string; content: string; isMe: boolean }[];
+  tocItems?: { title: string; pageIndex: number }[];
+  randomOptions?: string[];
+  randomResult?: string;
+  faceImageUrl?: string;
+  viewCount?: number;
+  dynamicNumberTarget?: number;
+  dynamicNumberDuration?: number;
+  pipMainImage?: string;
+  pipSubImage?: string;
+  scratchBgColor?: string;
+  scratchRevealImage?: string;
+  fingerprintLabel?: string;
+  glassImageUrl?: string;
+  ageFrom?: number;
+  ageTo?: number;
+  wordArtText?: string;
+  wordArtStyle?: string;
+  soundEffectSrc?: string;
+  soundEffectVolume?: number;
+  screenshotLabel?: string;
+  wechatAvatarUrl?: string;
+  cubeFaces?: string[];
+  photoUrl?: string;
+  [key: string]: unknown;
+}
+
 export interface CardElement {
   id: string;
   type: 'text' | 'image' | 'shape' | 'audio' | 'video' | 'icon' | 'group';
@@ -23,6 +93,7 @@ export interface CardElement {
   animations?: ElementAnimation[];  // 动画序列
   children?: string[];
   childElements?: CardElement[];
+  componentConfig?: ComponentConfig;  // 组件库高级组件配置
   style: {
     fontSize?: number;
     fontFamily?: string;
