@@ -42,7 +42,6 @@ const EditorPage = () => {
   const [showAuthWarning, setShowAuthWarning] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadProgress, setLoadProgress] = useState(0);
-  const [showShapeMenu, setShowShapeMenu] = useState(false);
   const hasCreatedCard = useRef(false); // 跟踪是否已创建贺卡
   const [currentCardId, setCurrentCardId] = useState<string | null>(null); // 当前编辑的卡片ID
   const initializedRef = useRef(false); // 防止重复初始化
@@ -617,10 +616,9 @@ const EditorPage = () => {
           </div>
 
           {/* 形状菜单 */}
-          <div className="flex items-center gap-1 px-2 border-r border-gray-200 relative">
+          <div className="flex items-center gap-1 px-2 border-r border-gray-200 relative group">
             <button
-              onClick={() => setShowShapeMenu(!showShapeMenu)}
-              className="p-2 rounded-lg hover:bg-blue-50 text-gray-600 hover:text-blue-600 transition-all flex items-center gap-1"
+              className="p-2 rounded-lg hover:bg-blue-50 text-gray-600 hover:text-blue-600 transition-all flex items-center gap-1 group-hover:bg-blue-50 group-hover:text-blue-600"
               title="形状菜单"
             >
               <Square className="w-4 h-4" />
@@ -628,52 +626,50 @@ const EditorPage = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
-            {showShapeMenu && (
-              <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-[200]">
-                <button
-                  onClick={() => { addShape('rectangle'); setShowShapeMenu(false); }}
-                  className="w-full px-4 py-2 flex items-center gap-2 hover:bg-gray-50 text-left text-sm text-gray-700"
-                >
-                  <Square className="w-4 h-4 text-gray-500" />
-                  <span>矩形</span>
-                </button>
-                <button
-                  onClick={() => { addShape('circle'); setShowShapeMenu(false); }}
-                  className="w-full px-4 py-2 flex items-center gap-2 hover:bg-gray-50 text-left text-sm text-gray-700"
-                >
-                  <CircleIcon className="w-4 h-4 text-gray-500" />
-                  <span>圆形</span>
-                </button>
-                <button
-                  onClick={() => { addShape('triangle'); setShowShapeMenu(false); }}
-                  className="w-full px-4 py-2 flex items-center gap-2 hover:bg-gray-50 text-left text-sm text-gray-700"
-                >
-                  <Triangle className="w-4 h-4 text-gray-500" />
-                  <span>三角形</span>
-                </button>
-                <button
-                  onClick={() => { addShape('line'); setShowShapeMenu(false); }}
-                  className="w-full px-4 py-2 flex items-center gap-2 hover:bg-gray-50 text-left text-sm text-gray-700"
-                >
-                  <Minus className="w-4 h-4 text-gray-500" />
-                  <span>线条</span>
-                </button>
-                <button
-                  onClick={() => { addShape('arrow'); setShowShapeMenu(false); }}
-                  className="w-full px-4 py-2 flex items-center gap-2 hover:bg-gray-50 text-left text-sm text-gray-700"
-                >
-                  <ArrowRight className="w-4 h-4 text-gray-500" />
-                  <span>箭头</span>
-                </button>
-                <button
-                  onClick={() => { addShape('star'); setShowShapeMenu(false); }}
-                  className="w-full px-4 py-2 flex items-center gap-2 hover:bg-gray-50 text-left text-sm text-gray-700"
-                >
-                  <Star className="w-4 h-4 text-gray-500" />
-                  <span>星形</span>
-                </button>
-              </div>
-            )}
+            <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-[200] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 min-w-[160px]">
+              <button
+                onClick={() => addShape('rectangle')}
+                className="w-full px-4 py-2 flex items-center gap-2 hover:bg-gray-50 text-left text-sm text-gray-700"
+              >
+                <Square className="w-4 h-4 text-gray-500" />
+                <span>矩形</span>
+              </button>
+              <button
+                onClick={() => addShape('circle')}
+                className="w-full px-4 py-2 flex items-center gap-2 hover:bg-gray-50 text-left text-sm text-gray-700"
+              >
+                <CircleIcon className="w-4 h-4 text-gray-500" />
+                <span>圆形</span>
+              </button>
+              <button
+                onClick={() => addShape('triangle')}
+                className="w-full px-4 py-2 flex items-center gap-2 hover:bg-gray-50 text-left text-sm text-gray-700"
+              >
+                <Triangle className="w-4 h-4 text-gray-500" />
+                <span>三角形</span>
+              </button>
+              <button
+                onClick={() => addShape('line')}
+                className="w-full px-4 py-2 flex items-center gap-2 hover:bg-gray-50 text-left text-sm text-gray-700"
+              >
+                <Minus className="w-4 h-4 text-gray-500" />
+                <span>线条</span>
+              </button>
+              <button
+                onClick={() => addShape('arrow')}
+                className="w-full px-4 py-2 flex items-center gap-2 hover:bg-gray-50 text-left text-sm text-gray-700"
+              >
+                <ArrowRight className="w-4 h-4 text-gray-500" />
+                <span>箭头</span>
+              </button>
+              <button
+                onClick={() => addShape('star')}
+                className="w-full px-4 py-2 flex items-center gap-2 hover:bg-gray-50 text-left text-sm text-gray-700"
+              >
+                <Star className="w-4 h-4 text-gray-500" />
+                <span>星形</span>
+              </button>
+            </div>
           </div>
 
           {/* 对齐工具 */}
