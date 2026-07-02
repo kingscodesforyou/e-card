@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import { useEditorStore } from '../../store';
 import type { CardElement, ComponentConfig } from '../../types';
+import ImageCropperModal from './ImageCropperModal';
 
 interface ComponentPropertyEditorProps {
   element: CardElement;
@@ -20,6 +21,7 @@ export function PuzzlePropertyEditor({ element }: ComponentPropertyEditorProps) 
   const layout = config.puzzleLayout || {};
 
   const [selectedCellIndex, setSelectedCellIndex] = useState(0);
+  const [croppingIndex, setCroppingIndex] = useState<number | null>(null);
   const selectedCell = cells[selectedCellIndex];
 
   const updateCell = (index: number, updates: Partial<typeof selectedCell>) => {
@@ -113,9 +115,9 @@ export function PuzzlePropertyEditor({ element }: ComponentPropertyEditorProps) 
                 <div className="flex gap-2">
                   <button
                     className="flex-1 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-500 hover:bg-gray-50"
-                    onClick={() => handleImageUpload(selectedCellIndex)}
+                    onClick={() => setCroppingIndex(selectedCellIndex)}
                   >
-                    剪辑图片
+                    裁切
                   </button>
                   <button
                     className="flex-1 py-1.5 border border-red-200 rounded-lg text-xs text-red-500 hover:bg-red-50"
@@ -178,6 +180,41 @@ export function PuzzlePropertyEditor({ element }: ComponentPropertyEditorProps) 
               <span>{Math.round((selectedCell.opacity ?? 1) * 100)}%</span>
               <span>100%</span>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">形状类型</label>
+            <select
+              value={selectedCell.shapeType || 'rectangle'}
+              onChange={(e) => {
+                const shapeType = e.target.value === 'rectangle' ? undefined : e.target.value as any;
+                let shapePath: string | undefined;
+                switch (shapeType) {
+                  case 'circle':
+                    shapePath = 'circle(50%)';
+                    break;
+                  case 'heart':
+                    shapePath = 'polygon(50% 100%, 0% 35%, 25% 15%, 50% 40%, 75% 15%, 100% 35%)';
+                    break;
+                  case 'hexagon':
+                    shapePath = 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)';
+                    break;
+                  case 'triangle':
+                    shapePath = 'polygon(50% 0%, 0% 100%, 100% 100%)';
+                    break;
+                  default:
+                    shapePath = undefined;
+                }
+                updateCell(selectedCellIndex, { shapeType, shapePath });
+              }}
+              className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs"
+            >
+              <option value="rectangle">矩形</option>
+              <option value="circle">圆形</option>
+              <option value="heart">心形</option>
+              <option value="hexagon">六边形</option>
+              <option value="triangle">三角形</option>
+            </select>
           </div>
 
           <div>
@@ -271,6 +308,18 @@ export function PuzzlePropertyEditor({ element }: ComponentPropertyEditorProps) 
           </div>
         </div>
       </div>
+
+      {croppingIndex !== null && cells[croppingIndex]?.imageUrl && (
+        <ImageCropperModal
+          isOpen={croppingIndex !== null}
+          onClose={() => setCroppingIndex(null)}
+          imageUrl={cells[croppingIndex].imageUrl!}
+          onConfirm={(croppedUrl) => {
+            updateCell(croppingIndex, { imageUrl: croppedUrl });
+            setCroppingIndex(null);
+          }}
+        />
+      )}
     </div>
   );
 }

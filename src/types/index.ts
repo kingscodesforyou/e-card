@@ -9,6 +9,8 @@ export interface ElementAnimation {
   category: 'enter' | 'emphasis' | 'exit';
 }
 
+export type ShapeType = 'rectangle' | 'circle' | 'ellipse' | 'triangle' | 'polygon' | 'heart' | 'hexagon' | 'custom';
+
 export interface PuzzleCell {
   x: number;
   y: number;
@@ -19,6 +21,9 @@ export interface PuzzleCell {
   borderColor?: string;
   opacity?: number;
   animation?: string;
+  shapeType?: ShapeType;
+  shapePath?: string;
+  borderRadius?: number;
 }
 
 export interface PuzzleTemplate {

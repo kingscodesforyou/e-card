@@ -26,6 +26,31 @@ export function PuzzleRenderer({ element }: { element: CardElement }) {
     }
   };
 
+  const getClipPath = (cell: typeof cells[0]) => {
+    if (cell.shapePath) return cell.shapePath;
+    switch (cell.shapeType) {
+      case 'circle':
+        return 'circle(50%)';
+      case 'ellipse':
+        return 'ellipse(50% 50%)';
+      case 'triangle':
+        return 'polygon(50% 0%, 0% 100%, 100% 100%)';
+      case 'heart':
+        return 'polygon(50% 100%, 0% 35%, 25% 15%, 50% 40%, 75% 15%, 100% 35%)';
+      case 'hexagon':
+        return 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)';
+      default:
+        return undefined;
+    }
+  };
+
+  const getBorderRadius = (cell: typeof cells[0]) => {
+    if (cell.shapeType === 'circle') return '50%';
+    if (cell.borderRadius) return `${cell.borderRadius}px`;
+    if (!cell.shapeType && !cell.shapePath) return '4px';
+    return '0px';
+  };
+
   return (
     <div
       style={{
@@ -37,41 +62,51 @@ export function PuzzleRenderer({ element }: { element: CardElement }) {
         padding: `${gap}px`,
       }}
     >
-      {cells.map((cell, idx) => (
-        <div
-          key={idx}
-          className={`absolute ${getAnimationClass(cell.animation)}`}
-          style={{
-            left: `${cell.x}%`,
-            top: `${cell.y}%`,
-            width: `${cell.width}%`,
-            height: `${cell.height}%`,
-            borderRadius: '4px',
-            overflow: 'hidden',
-            borderWidth: `${cell.borderWidth || layout.borderWidth || 0}px`,
-            borderColor: cell.borderColor || layout.borderColor || '#ffffff',
-            borderStyle: 'solid',
-            opacity: cell.opacity ?? 1,
-          }}
-        >
-          {cell.imageUrl ? (
-            <img
-              src={cell.imageUrl}
-              alt={`puzzle-cell-${idx}`}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div
-              className="w-full h-full flex items-center justify-center text-gray-300 text-xs"
-              style={{
-                backgroundColor: `hsl(${260 + idx * 30}, 60%, ${65 + (idx % 4) * 10}%)`,
-              }}
-            >
-              + 添加图片
-            </div>
-          )}
-        </div>
-      ))}
+      {cells.map((cell, idx) => {
+        const clipPath = getClipPath(cell);
+        return (
+          <div
+            key={idx}
+            className={`absolute ${getAnimationClass(cell.animation)}`}
+            style={{
+              left: `${cell.x}%`,
+              top: `${cell.y}%`,
+              width: `${cell.width}%`,
+              height: `${cell.height}%`,
+              borderRadius: getBorderRadius(cell),
+              overflow: clipPath ? 'visible' : 'hidden',
+              clipPath: clipPath,
+              WebkitClipPath: clipPath,
+              borderWidth: `${cell.borderWidth || layout.borderWidth || 0}px`,
+              borderColor: cell.borderColor || layout.borderColor || '#ffffff',
+              borderStyle: 'solid',
+              opacity: cell.opacity ?? 1,
+            }}
+          >
+            {cell.imageUrl ? (
+              <img
+                src={cell.imageUrl}
+                alt={`puzzle-cell-${idx}`}
+                className="w-full h-full object-cover"
+                style={{
+                  borderRadius: clipPath ? 'inherit' : undefined,
+                  clipPath: clipPath,
+                  WebkitClipPath: clipPath,
+                }}
+              />
+            ) : (
+              <div
+                className="w-full h-full flex items-center justify-center text-gray-300 text-xs"
+                style={{
+                  backgroundColor: `hsl(${260 + idx * 30}, 60%, ${65 + (idx % 4) * 10}%)`,
+                }}
+              >
+                + 添加图片
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
