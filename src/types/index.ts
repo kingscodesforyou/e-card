@@ -9,12 +9,38 @@ export interface ElementAnimation {
   category: 'enter' | 'emphasis' | 'exit';
 }
 
+export interface PuzzleCell {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  imageUrl?: string;
+  borderWidth?: number;
+  borderColor?: string;
+  opacity?: number;
+  animation?: string;
+}
+
+export interface PuzzleTemplate {
+  id: string;
+  name: string;
+  category: number;
+  cells: { x: number; y: number; width: number; height: number }[];
+}
+
 // 组件库高级组件配置
 export interface ComponentConfig {
   componentType: string;
   puzzleImages?: string[];
   puzzleCols?: number;
   puzzleGap?: number;
+  puzzleTemplateId?: string;
+  puzzleCells?: PuzzleCell[];
+  puzzleLayout?: {
+    borderWidth?: number;
+    borderColor?: string;
+    gap?: number;
+  };
   carouselImages?: string[];
   carouselInterval?: number;
   carouselAutoPlay?: boolean;

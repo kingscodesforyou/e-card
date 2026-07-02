@@ -16,70 +16,260 @@ interface ComponentPropertyEditorProps {
 export function PuzzlePropertyEditor({ element }: ComponentPropertyEditorProps) {
   const { updateElement } = useEditorStore();
   const config = element.componentConfig || { componentType: 'puzzle' };
+  const cells = config.puzzleCells || [];
+  const layout = config.puzzleLayout || {};
 
-  const updateConfig = (updates: Partial<ComponentConfig>) => {
+  const [selectedCellIndex, setSelectedCellIndex] = useState(0);
+  const selectedCell = cells[selectedCellIndex];
+
+  const updateCell = (index: number, updates: Partial<typeof selectedCell>) => {
+    const newCells = [...cells];
+    newCells[index] = { ...newCells[index], ...updates };
     updateElement(element.id, {
-      componentConfig: { ...config, ...updates },
+      componentConfig: { ...config, puzzleCells: newCells },
     });
   };
+
+  const updateAllCells = (updates: Partial<typeof selectedCell>) => {
+    const newCells = cells.map((cell) => ({ ...cell, ...updates }));
+    updateElement(element.id, {
+      componentConfig: { ...config, puzzleCells: newCells },
+    });
+  };
+
+  const updateLayout = (updates: Partial<typeof layout>) => {
+    updateElement(element.id, {
+      componentConfig: { ...config, puzzleLayout: { ...layout, ...updates } },
+    });
+  };
+
+  const handleImageUpload = (index: number) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const files = (e.target as HTMLInputElement).files;
+      if (!files || files.length === 0) return;
+      const url = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.readAsDataURL(files[0]);
+      });
+      updateCell(index, { imageUrl: url });
+    };
+    input.click();
+  };
+
+  const animations = [
+    { value: '', label: '无' },
+    { value: 'fadeIn', label: '淡入' },
+    { value: 'slideIn', label: '滑入' },
+    { value: 'bounce', label: '弹跳' },
+    { value: 'pulse', label: '脉冲' },
+    { value: 'shake', label: '抖动' },
+  ];
 
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-xs text-gray-500 mb-1">列数</label>
-        <div className="flex gap-2">
-          {[2, 3, 4].map((n) => (
+        <label className="block text-xs text-gray-500 mb-2">选择子图</label>
+        <div className="flex gap-2 flex-wrap">
+          {cells.map((cell, index) => (
             <button
-              key={n}
-              onClick={() => updateConfig({ puzzleCols: n })}
-              className={`px-3 py-1.5 rounded-lg text-sm border ${
-                config.puzzleCols === n ? 'border-purple-500 bg-purple-50 text-purple-600' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+              key={index}
+              onClick={() => setSelectedCellIndex(index)}
+              className={`w-12 h-12 rounded-lg border-2 overflow-hidden flex items-center justify-center relative ${
+                selectedCellIndex === index
+                  ? 'border-blue-500 ring-2 ring-blue-100'
+                  : 'border-gray-200 hover:border-gray-300'
               }`}
             >
-              {n}×{n}
+              {cell.imageUrl ? (
+                <img src={cell.imageUrl} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-xs text-gray-400">{index + 1}</span>
+              )}
+              {selectedCellIndex === index && (
+                <div className="absolute inset-0 bg-blue-500/10" />
+              )}
             </button>
           ))}
         </div>
       </div>
-      <div>
-        <label className="block text-xs text-gray-500 mb-1">间距 (px)</label>
-        <input
-          type="range"
-          min="0"
-          max="8"
-          value={config.puzzleGap || 2}
-          onChange={(e) => updateConfig({ puzzleGap: Number(e.target.value) })}
-          className="w-full"
-        />
-      </div>
-      <div>
-        <label className="block text-xs text-gray-500 mb-1">添加图片</label>
-        <button
-          className="w-full py-2 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-purple-300 hover:text-purple-500"
-          onClick={() => {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = 'image/*';
-            input.multiple = true;
-            input.onchange = async (e) => {
-              const files = (e.target as HTMLInputElement).files;
-              if (!files) return;
-              const urls: string[] = [];
-              for (const file of Array.from(files)) {
-                const url = await new Promise<string>((resolve) => {
-                  const reader = new FileReader();
-                  reader.onload = (e) => resolve(e.target?.result as string);
-                  reader.readAsDataURL(file);
-                });
-                urls.push(url);
-              }
-              updateConfig({ puzzleImages: [...(config.puzzleImages || []), ...urls] });
-            };
-            input.click();
-          }}
-        >
-          + 添加拼图图片
-        </button>
+
+      {selectedCell && (
+        <>
+          <div>
+            <label className="block text-xs text-gray-500 mb-2">第 {selectedCellIndex + 1} 张图</label>
+            <div className="space-y-3">
+              <button
+                className="w-full py-2 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-blue-300 hover:text-blue-500 flex items-center justify-center gap-2"
+                onClick={() => handleImageUpload(selectedCellIndex)}
+              >
+                {selectedCell.imageUrl ? '替换图片' : '选择图片'}
+              </button>
+
+              {selectedCell.imageUrl && (
+                <div className="flex gap-2">
+                  <button
+                    className="flex-1 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-500 hover:bg-gray-50"
+                    onClick={() => handleImageUpload(selectedCellIndex)}
+                  >
+                    剪辑图片
+                  </button>
+                  <button
+                    className="flex-1 py-1.5 border border-red-200 rounded-lg text-xs text-red-500 hover:bg-red-50"
+                    onClick={() => updateCell(selectedCellIndex, { imageUrl: undefined })}
+                  >
+                    移除图片
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">边框宽度 (px)</label>
+            <input
+              type="range"
+              min="0"
+              max="10"
+              value={selectedCell.borderWidth || 0}
+              onChange={(e) => updateCell(selectedCellIndex, { borderWidth: Number(e.target.value) })}
+              className="w-full"
+            />
+            <div className="flex justify-between text-xs text-gray-400 mt-1">
+              <span>0</span>
+              <span>{selectedCell.borderWidth || 0}px</span>
+              <span>10</span>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">边框颜色</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={selectedCell.borderColor || '#ffffff'}
+                onChange={(e) => updateCell(selectedCellIndex, { borderColor: e.target.value })}
+                className="w-8 h-8 rounded cursor-pointer border border-gray-200"
+              />
+              <input
+                type="text"
+                value={selectedCell.borderColor || '#ffffff'}
+                onChange={(e) => updateCell(selectedCellIndex, { borderColor: e.target.value })}
+                className="flex-1 px-2 py-1.5 border border-gray-200 rounded text-xs"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">透明度</label>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={Math.round((selectedCell.opacity ?? 1) * 100)}
+              onChange={(e) => updateCell(selectedCellIndex, { opacity: Number(e.target.value) / 100 })}
+              className="w-full"
+            />
+            <div className="flex justify-between text-xs text-gray-400 mt-1">
+              <span>0%</span>
+              <span>{Math.round((selectedCell.opacity ?? 1) * 100)}%</span>
+              <span>100%</span>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">动画效果</label>
+            <select
+              value={selectedCell.animation || ''}
+              onChange={(e) => updateCell(selectedCellIndex, { animation: e.target.value || undefined })}
+              className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs"
+            >
+              {animations.map((anim) => (
+                <option key={anim.value} value={anim.value}>{anim.label}</option>
+              ))}
+            </select>
+          </div>
+        </>
+      )}
+
+      <div className="pt-2 border-t border-gray-100">
+        <label className="block text-xs text-gray-500 mb-2">一键设置所有子图</label>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">边框宽度</label>
+            <input
+              type="range"
+              min="0"
+              max="10"
+              value={layout.borderWidth || 0}
+              onChange={(e) => updateLayout({ borderWidth: Number(e.target.value) })}
+              className="w-full"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">边框颜色</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={layout.borderColor || '#ffffff'}
+                onChange={(e) => updateLayout({ borderColor: e.target.value })}
+                className="w-8 h-8 rounded cursor-pointer border border-gray-200"
+              />
+              <input
+                type="text"
+                value={layout.borderColor || '#ffffff'}
+                onChange={(e) => updateLayout({ borderColor: e.target.value })}
+                className="flex-1 px-2 py-1.5 border border-gray-200 rounded text-xs"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">间距 (px)</label>
+            <input
+              type="range"
+              min="0"
+              max="10"
+              value={layout.gap || 2}
+              onChange={(e) => updateLayout({ gap: Number(e.target.value) })}
+              className="w-full"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">统一动画</label>
+            <select
+              value={''}
+              onChange={(e) => {
+                if (e.target.value) {
+                  updateAllCells({ animation: e.target.value });
+                }
+              }}
+              className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs"
+            >
+              <option value="">选择动画</option>
+              {animations.filter((a) => a.value).map((anim) => (
+                <option key={anim.value} value={anim.value}>{anim.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">统一透明度</label>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={100}
+              onChange={(e) => updateAllCells({ opacity: Number(e.target.value) / 100 })}
+              className="w-full"
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

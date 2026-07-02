@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Grid3X3, Eye, MousePointer, Sparkles, Zap, Navigation, Image, PieChart, Calendar, MapPin, User, MessageSquare, Heart, ThumbsUp, Star, Play, RotateCcw, PenTool, Scan, Volume2, Music, Bookmark, FolderOpen, Menu, ChevronRight, Plus } from 'lucide-react';
 import { useEditorStore } from '../../store';
-import type { ComponentConfig, CardElement } from '../../types';
+import type { ComponentConfig, CardElement, PuzzleTemplate, PuzzleCell } from '../../types';
+import PuzzleTemplateModal from './PuzzleTemplateModal';
 
 interface ComponentItem {
   id: string;
@@ -1239,6 +1240,7 @@ const categories: Category[] = [
 const ComponentPicker = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedComponent, setSelectedComponent] = useState<ComponentItem | null>(null);
+  const [isPuzzleModalOpen, setIsPuzzleModalOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<number | null>(null);
   const addElement = useEditorStore((state) => state.addElement);
@@ -1287,12 +1289,45 @@ const ComponentPicker = () => {
   };
 
   const handleComponentSelect = (component: ComponentItem) => {
+    if (component.id === 'visual-puzzle') {
+      setIsPuzzleModalOpen(true);
+      return;
+    }
     const elementWithConfig = {
       ...component.elementData,
       componentConfig: component.componentConfig,
     };
     addElement(elementWithConfig);
     setIsOpen(false);
+  };
+
+  const handlePuzzleTemplateSelect = (template: PuzzleTemplate) => {
+    const puzzleCells: PuzzleCell[] = template.cells.map((cell) => ({
+      ...cell,
+      borderWidth: 2,
+      borderColor: '#ffffff',
+      opacity: 1,
+    }));
+
+    const elementWithConfig: Omit<CardElement, 'id'> = {
+      type: 'image',
+      content: '',
+      position: { x: 5, y: 20 },
+      size: { width: 90, height: 55 },
+      style: { backgroundColor: '#f0f0f0', borderRadius: 8 },
+      componentConfig: {
+        componentType: 'puzzle',
+        puzzleTemplateId: template.id,
+        puzzleCells,
+        puzzleLayout: {
+          borderWidth: 2,
+          borderColor: '#ffffff',
+          gap: 2,
+        },
+      },
+    };
+
+    addElement(elementWithConfig);
   };
 
   return (
@@ -1375,6 +1410,12 @@ const ComponentPicker = () => {
           </div>
         </div>
       )}
+
+      <PuzzleTemplateModal
+        isOpen={isPuzzleModalOpen}
+        onClose={() => setIsPuzzleModalOpen(false)}
+        onSelect={handlePuzzleTemplateSelect}
+      />
     </div>
   );
 };

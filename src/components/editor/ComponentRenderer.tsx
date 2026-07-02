@@ -11,38 +11,66 @@ import { Heart, Eye, MapPin, Volume2, ChevronRight, PenTool, Play, Pause, Rotate
 // ============================================================
 export function PuzzleRenderer({ element }: { element: CardElement }) {
   const config = element.componentConfig;
-  const cols = config?.puzzleCols || 3;
-  const gap = config?.puzzleGap || 2;
-  const images = config?.puzzleImages || [];
+  const cells = config?.puzzleCells || [];
+  const layout = config?.puzzleLayout || {};
+  const gap = layout.gap || 0;
 
-  const cells = Array.from({ length: cols * cols }, (_, i) => i);
+  const getAnimationClass = (animation?: string) => {
+    switch (animation) {
+      case 'fadeIn': return 'animate-fade-in';
+      case 'slideIn': return 'animate-slide-in';
+      case 'bounce': return 'animate-bounce';
+      case 'pulse': return 'animate-pulse';
+      case 'shake': return 'animate-shake';
+      default: return '';
+    }
+  };
 
   return (
     <div
       style={{
         width: '100%',
         height: '100%',
-        display: 'grid',
-        gridTemplateColumns: `repeat(${cols}, 1fr)`,
-        gap: `${gap}px`,
-        padding: `${gap}px`,
-        borderRadius: '8px',
+        position: 'relative',
+        borderRadius: `${element.style?.borderRadius || 8}px`,
         overflow: 'hidden',
+        padding: `${gap}px`,
       }}
     >
-      {cells.map((i) => (
+      {cells.map((cell, idx) => (
         <div
-          key={i}
+          key={idx}
+          className={`absolute ${getAnimationClass(cell.animation)}`}
           style={{
-            backgroundColor: images[i] ? 'transparent' : `hsl(${260 + i * 20}, 70%, ${70 + (i % 3) * 5}%)`,
+            left: `${cell.x}%`,
+            top: `${cell.y}%`,
+            width: `${cell.width}%`,
+            height: `${cell.height}%`,
             borderRadius: '4px',
-            backgroundImage: images[i] ? `url(${images[i]})` : undefined,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            aspectRatio: '1',
-            minHeight: 0,
+            overflow: 'hidden',
+            borderWidth: `${cell.borderWidth || layout.borderWidth || 0}px`,
+            borderColor: cell.borderColor || layout.borderColor || '#ffffff',
+            borderStyle: 'solid',
+            opacity: cell.opacity ?? 1,
           }}
-        />
+        >
+          {cell.imageUrl ? (
+            <img
+              src={cell.imageUrl}
+              alt={`puzzle-cell-${idx}`}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div
+              className="w-full h-full flex items-center justify-center text-gray-300 text-xs"
+              style={{
+                backgroundColor: `hsl(${260 + idx * 30}, 60%, ${65 + (idx % 4) * 10}%)`,
+              }}
+            >
+              + 添加图片
+            </div>
+          )}
+        </div>
       ))}
     </div>
   );
