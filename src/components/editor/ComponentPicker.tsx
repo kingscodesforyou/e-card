@@ -1358,7 +1358,7 @@ const ComponentPicker = () => {
                     <button
                       key={component.id}
                       onClick={() => handleComponentSelect(component)}
-                      className={`flex flex-col items-center gap-1 px-2 py-2 rounded-md text-xs transition-all ${
+                      className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-all ${
                         selectedComponent?.id === component.id
                           ? `${category.bgColor} ${category.color} shadow-sm`
                           : 'hover:bg-gray-50 text-gray-600'
@@ -1366,7 +1366,7 @@ const ComponentPicker = () => {
                       onMouseEnter={() => handleComponentHover(component)}
                     >
                       <span className="opacity-80">{component.icon}</span>
-                      <span className="truncate text-center max-w-full">{component.name}</span>
+                      <span className="truncate text-left">{component.name}</span>
                     </button>
                   ))}
                 </div>
