@@ -119,49 +119,61 @@ export default function PuzzleCellCropperModal({ isOpen, onClose, cell, onConfir
     if (!image || !containerRef.current) return;
 
     const container = containerRef.current;
-    const rect = container.getBoundingClientRect();
-    setContainerSize({ width: rect.width, height: rect.height });
 
-    const imgRatio = image.width / image.height;
-    const containerRatio = rect.width / rect.height;
+    const updateDimensions = () => {
+      const rect = container.getBoundingClientRect();
+      setContainerSize({ width: rect.width, height: rect.height });
 
-    let newScale: number;
-    if (imgRatio > containerRatio) {
-      newScale = rect.width / image.width;
-    } else {
-      newScale = rect.height / image.height;
-    }
-    setScale(newScale);
+      const imgRatio = image.width / image.height;
+      const containerRatio = rect.width / rect.height;
 
-    let cropWidth: number, cropHeight: number;
-
-    if (aspectRatio) {
-      const maxWidth = image.width;
-      const maxHeight = image.height;
-      const testHeight = maxWidth / aspectRatio;
-      if (testHeight <= maxHeight) {
-        cropWidth = maxWidth;
-        cropHeight = testHeight;
+      let newScale: number;
+      if (imgRatio > containerRatio) {
+        newScale = rect.width / image.width;
       } else {
-        cropHeight = maxHeight;
-        cropWidth = maxHeight * aspectRatio;
+        newScale = rect.height / image.height;
       }
-    } else {
-      cropWidth = Math.min(image.width, rect.width / newScale) * 0.8;
-      cropHeight = Math.min(image.height, rect.height / newScale) * 0.8;
-    }
+      setScale(newScale);
 
-    const savedParams = cropHistory[historyIndex];
-    if (savedParams) {
-      setCropArea(savedParams);
-    } else {
-      setCropArea({
-        x: (image.width - cropWidth) / 2,
-        y: (image.height - cropHeight) / 2,
-        width: cropWidth,
-        height: cropHeight,
-      });
-    }
+      let cropWidth: number, cropHeight: number;
+
+      if (aspectRatio) {
+        const maxWidth = image.width;
+        const maxHeight = image.height;
+        const testHeight = maxWidth / aspectRatio;
+        if (testHeight <= maxHeight) {
+          cropWidth = maxWidth;
+          cropHeight = testHeight;
+        } else {
+          cropHeight = maxHeight;
+          cropWidth = maxHeight * aspectRatio;
+        }
+      } else {
+        cropWidth = Math.min(image.width, rect.width / newScale) * 0.8;
+        cropHeight = Math.min(image.height, rect.height / newScale) * 0.8;
+      }
+
+      const savedParams = cropHistory[historyIndex];
+      if (savedParams) {
+        setCropArea(savedParams);
+      } else {
+        setCropArea({
+          x: (image.width - cropWidth) / 2,
+          y: (image.height - cropHeight) / 2,
+          width: cropWidth,
+          height: cropHeight,
+        });
+      }
+    };
+
+    updateDimensions();
+
+    const resizeObserver = new ResizeObserver(updateDimensions);
+    resizeObserver.observe(container);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
   }, [image, isOpen, aspectRatio, cropHistory, historyIndex]);
 
   useEffect(() => {
@@ -394,9 +406,9 @@ export default function PuzzleCellCropperModal({ isOpen, onClose, cell, onConfir
   const shapePathValue = renderShapePath(cell.shapePath);
 
   return (
-    <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/60">
-      <div className="bg-white rounded-xl shadow-2xl w-[900px] max-w-[95vw] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+    <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/60 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-[900px] max-w-[95vw] max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 flex-shrink-0">
           <h2 className="text-lg font-semibold text-gray-800">子图裁剪</h2>
           <button
             onClick={onClose}
@@ -406,7 +418,7 @@ export default function PuzzleCellCropperModal({ isOpen, onClose, cell, onConfir
           </button>
         </div>
 
-        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
           <div className="flex gap-2">
             <button
               onClick={handleReset}
@@ -446,8 +458,8 @@ export default function PuzzleCellCropperModal({ isOpen, onClose, cell, onConfir
           </span>
         </div>
 
-        <div className="flex-1 flex">
-          <div className="relative bg-gray-900 flex-1 min-h-[300px]">
+        <div className="flex-1 flex overflow-hidden min-h-0">
+          <div className="relative bg-gray-900 flex-1 overflow-auto min-h-0">
             <div
               ref={containerRef}
               className="relative w-full h-full flex items-center justify-center overflow-hidden"
@@ -456,82 +468,79 @@ export default function PuzzleCellCropperModal({ isOpen, onClose, cell, onConfir
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
             >
-              <img
-                src={image.src}
-                alt="crop"
-                style={imageStyle}
-                className="pointer-events-none"
-              />
-
               <div
-                className="absolute bg-black/50 pointer-events-none"
+                className="relative"
                 style={{
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                }}
-              />
-
-              <div
-                className="absolute bg-transparent border-2 border-white pointer-events-auto cursor-move"
-                style={cropStyle}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  handleMouseDown(e);
+                  width: image.width * scale,
+                  height: image.height * scale,
                 }}
               >
-                <div
-                  className="absolute inset-0"
+                <img
+                  src={image.src}
+                  alt="crop"
                   style={{
-                    backgroundImage: `url(${image.src})`,
-                    backgroundSize: `${image.width * scale}px ${image.height * scale}px`,
-                    backgroundPosition: `-${cropArea.x * scale}px -${cropArea.y * scale}px`,
+                    width: image.width * scale,
+                    height: image.height * scale,
                   }}
+                  className="pointer-events-none"
                 />
 
-                {shapePathValue && (
-                  <svg className="absolute inset-0 w-full h-full pointer-events-none">
-                    <defs>
-                      <clipPath id="cropShapeClip">
-                        <path d={shapePathValue.replace(/%/g, (_, i) => '%')} />
-                      </clipPath>
-                    </defs>
-                    <path
-                      d={shapePathValue.replace(/%/g, (_, i) => '%')}
-                      fill="none"
-                      stroke="#00ffff"
-                      strokeWidth="2"
-                      strokeOpacity="0.7"
-                      className="drop-shadow-lg"
-                    />
-                  </svg>
-                )}
+                <div className="absolute top-0 left-0 right-0 bg-black/50 pointer-events-none" style={{ height: cropArea.y * scale }} />
+                <div className="absolute bottom-0 left-0 right-0 bg-black/50 pointer-events-none" style={{ height: (image.height - cropArea.y - cropArea.height) * scale }} />
+                <div className="absolute top-0 bottom-0 left-0 bg-black/50 pointer-events-none" style={{ width: cropArea.x * scale }} />
+                <div className="absolute top-0 bottom-0 right-0 bg-black/50 pointer-events-none" style={{ width: (image.width - cropArea.x - cropArea.width) * scale }} />
 
-                <div className="absolute w-3 h-3 -top-1.5 -left-1.5 bg-white rounded-full border-2 border-gray-400 cursor-nw-resize" />
-                <div className="absolute w-3 h-3 -top-1.5 -right-1.5 bg-white rounded-full border-2 border-gray-400 cursor-ne-resize" />
-                <div className="absolute w-3 h-3 -bottom-1.5 -left-1.5 bg-white rounded-full border-2 border-gray-400 cursor-sw-resize" />
-                <div className="absolute w-3 h-3 -bottom-1.5 -right-1.5 bg-white rounded-full border-2 border-gray-400 cursor-se-resize" />
+                <div
+                  className="absolute bg-transparent border-2 border-white pointer-events-auto cursor-move"
+                  style={cropStyle}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    handleMouseDown(e);
+                  }}
+                >
+                  {shapePathValue && (
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                      <defs>
+                        <clipPath id="cropShapeClip">
+                          <path d={shapePathValue.replace(/%/g, (_, i) => '%')} />
+                        </clipPath>
+                      </defs>
+                      <path
+                        d={shapePathValue.replace(/%/g, (_, i) => '%')}
+                        fill="none"
+                        stroke="#00ffff"
+                        strokeWidth="2"
+                        strokeOpacity="0.7"
+                        className="drop-shadow-lg"
+                      />
+                    </svg>
+                  )}
 
-                <div className="absolute w-3 h-3 -top-1.5 left-1/2 -translate-x-1/2 bg-white rounded-full border-2 border-gray-400 cursor-n-resize" />
-                <div className="absolute w-3 h-3 -bottom-1.5 left-1/2 -translate-x-1/2 bg-white rounded-full border-2 border-gray-400 cursor-s-resize" />
-                <div className="absolute w-3 h-3 -left-1.5 top-1/2 -translate-y-1/2 bg-white rounded-full border-2 border-gray-400 cursor-w-resize" />
-                <div className="absolute w-3 h-3 -right-1.5 top-1/2 -translate-y-1/2 bg-white rounded-full border-2 border-gray-400 cursor-e-resize" />
+                  <div className="absolute w-3 h-3 -top-1.5 -left-1.5 bg-white rounded-full border-2 border-gray-400 cursor-nw-resize" />
+                  <div className="absolute w-3 h-3 -top-1.5 -right-1.5 bg-white rounded-full border-2 border-gray-400 cursor-ne-resize" />
+                  <div className="absolute w-3 h-3 -bottom-1.5 -left-1.5 bg-white rounded-full border-2 border-gray-400 cursor-sw-resize" />
+                  <div className="absolute w-3 h-3 -bottom-1.5 -right-1.5 bg-white rounded-full border-2 border-gray-400 cursor-se-resize" />
+
+                  <div className="absolute w-3 h-3 -top-1.5 left-1/2 -translate-x-1/2 bg-white rounded-full border-2 border-gray-400 cursor-n-resize" />
+                  <div className="absolute w-3 h-3 -bottom-1.5 left-1/2 -translate-x-1/2 bg-white rounded-full border-2 border-gray-400 cursor-s-resize" />
+                  <div className="absolute w-3 h-3 -left-1.5 top-1/2 -translate-y-1/2 bg-white rounded-full border-2 border-gray-400 cursor-w-resize" />
+                  <div className="absolute w-3 h-3 -right-1.5 top-1/2 -translate-y-1/2 bg-white rounded-full border-2 border-gray-400 cursor-e-resize" />
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="w-48 bg-gray-50 border-l border-gray-100 flex flex-col">
+          <div className="w-40 sm:w-48 bg-gray-50 border-l border-gray-100 flex flex-col">
             <div className="px-3 py-2 border-b border-gray-100">
               <span className="text-xs text-gray-500">裁剪预览</span>
             </div>
-            <div className="flex-1 flex items-center justify-center p-4">
+            <div className="flex-1 flex items-center justify-center p-2 overflow-auto">
               {previewUrl && (
                 <div className="relative">
                   <img
                     src={previewUrl}
                     alt="preview"
-                    className="max-w-full max-h-[200px] object-contain rounded-lg shadow-md"
+                    className="max-w-full max-h-[150px] sm:max-h-[200px] object-contain rounded-lg shadow-md"
                     style={{
                       clipPath: shapePathValue || undefined,
                     }}
@@ -550,8 +559,8 @@ export default function PuzzleCellCropperModal({ isOpen, onClose, cell, onConfir
                 </div>
               )}
             </div>
-            <div className="px-3 py-3 border-t border-gray-100">
-              <div className="text-xs text-gray-400 space-y-1">
+            <div className="px-2 py-2 border-t border-gray-100">
+              <div className="text-xs text-gray-400 space-y-0.5">
                 <div>原图: {image.width} × {image.height}</div>
                 <div>裁剪: {Math.round(cropArea.x)}, {Math.round(cropArea.y)}</div>
                 <div>尺寸: {Math.round(cropArea.width)} × {Math.round(cropArea.height)}</div>
@@ -560,7 +569,7 @@ export default function PuzzleCellCropperModal({ isOpen, onClose, cell, onConfir
           </div>
         </div>
 
-        <div className="px-5 py-4 border-t border-gray-100 flex items-center justify-end gap-3">
+        <div className="px-5 py-4 border-t border-gray-100 flex items-center justify-end gap-3 flex-shrink-0">
           <button
             onClick={onClose}
             className="px-5 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
