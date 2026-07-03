@@ -51,7 +51,7 @@ const Canvas = memo(function Canvas() {
     clearSelectedFlags();
     selectElement(element.id);
     setDragging(element.id);
-    const rect = (e.target as HTMLElement).getBoundingClientRect();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     setDragOffset({
       x: e.clientX - rect.left,
       y: e.clientY - rect.top,
