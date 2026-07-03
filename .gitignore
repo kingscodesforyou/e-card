@@ -27,3 +27,4 @@ dist-ssr
 # Windows 保留设备名（误创建的文件）
 nul
 NUL
+src/tests/animation.test.ts
