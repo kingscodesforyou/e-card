@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { X, Undo2, Redo2, RotateCcw } from 'lucide-react';
 import type { CropParams, PuzzleCell } from '../../types';
+import { parseClipPath, convertPercentToUnit } from '../../lib/clipPathUtils';
 
 interface PuzzleCellCropperModalProps {
   isOpen: boolean;
@@ -51,21 +52,33 @@ function generateCroppedImage(image: HTMLImageElement, cropParams: CropParams): 
   return canvas.toDataURL('image/png');
 }
 
-function renderShapePath(shapePath: string | undefined): string {
-  if (!shapePath) return '';
-  if (shapePath.startsWith('circle(')) {
-    const match = shapePath.match(/circle\(([^)]+)\)/);
-    if (match) return `circle(${match[1]})`;
+function renderShapePath(shapePath: string | undefined, shapeType: string | undefined): string {
+  if (shapePath) {
+    return shapePath;
   }
-  if (shapePath.startsWith('ellipse(')) {
-    const match = shapePath.match(/ellipse\(([^)]+)\)/);
-    if (match) return `ellipse(${match[1]})`;
+  
+  switch (shapeType) {
+    case 'circle':
+      return 'circle(50%)';
+    case 'ellipse':
+      return 'ellipse(50% 50%)';
+    case 'triangle':
+      return 'polygon(50% 0%, 0% 100%, 100% 100%)';
+    case 'heart':
+      return 'polygon(50% 100%, 0% 35%, 25% 15%, 50% 40%, 75% 15%, 100% 35%)';
+    case 'hexagon':
+      return 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)';
+    default:
+      return '';
   }
-  if (shapePath.startsWith('polygon(')) {
-    const match = shapePath.match(/polygon\(([^)]+)\)/);
-    if (match) return `polygon(${match[1]})`;
+}
+
+function getShapeSvgPath(shapePath: string | undefined, shapeType: string | undefined): string {
+  const info = parseClipPath(shapePath, shapeType);
+  if (info.useSvgClipPath && info.svgPathData) {
+    return convertPercentToUnit(info.svgPathData);
   }
-  return shapePath;
+  return '';
 }
 
 export default function PuzzleCellCropperModal({ isOpen, onClose, cell, onConfirm }: PuzzleCellCropperModalProps) {
@@ -563,7 +576,7 @@ export default function PuzzleCellCropperModal({ isOpen, onClose, cell, onConfir
     height: cropArea.height * scale,
   };
 
-  const shapePathValue = renderShapePath(cell.shapePath);
+  const shapePathValue = renderShapePath(cell.shapePath, cell.shapeType);
 
   // 手柄通用样式
   const handleBaseClass = 'absolute w-3 h-3 bg-white rounded-full border-2 border-gray-400 shadow-sm';
@@ -663,19 +676,48 @@ export default function PuzzleCellCropperModal({ isOpen, onClose, cell, onConfir
                   {/* 形状轮廓指引 */}
                   {shapePathValue && (
                     <svg className="absolute inset-0 w-full h-full pointer-events-none">
-                      <defs>
-                        <clipPath id="cropShapeClip">
-                          <path d={shapePathValue.replace(/%/g, (_, i) => '%')} />
-                        </clipPath>
-                      </defs>
-                      <path
-                        d={shapePathValue.replace(/%/g, (_, i) => '%')}
-                        fill="none"
-                        stroke="#00ffff"
-                        strokeWidth="2"
-                        strokeOpacity="0.7"
-                        className="drop-shadow-lg"
-                      />
+                      {shapePathValue.startsWith('circle(') ? (
+                        <circle
+                          cx="50%"
+                          cy="50%"
+                          r="50%"
+                          fill="none"
+                          stroke="#00ffff"
+                          strokeWidth="2"
+                          strokeOpacity="0.7"
+                          className="drop-shadow-lg"
+                        />
+                      ) : shapePathValue.startsWith('ellipse(') ? (
+                        <ellipse
+                          cx="50%"
+                          cy="50%"
+                          rx="50%"
+                          ry="50%"
+                          fill="none"
+                          stroke="#00ffff"
+                          strokeWidth="2"
+                          strokeOpacity="0.7"
+                          className="drop-shadow-lg"
+                        />
+                      ) : shapePathValue.startsWith('polygon(') ? (
+                        <polygon
+                          points={shapePathValue.replace('polygon(', '').replace(')', '')}
+                          fill="none"
+                          stroke="#00ffff"
+                          strokeWidth="2"
+                          strokeOpacity="0.7"
+                          className="drop-shadow-lg"
+                        />
+                      ) : (
+                        <path
+                          d={getShapeSvgPath(cell.shapePath, cell.shapeType) || shapePathValue.replace(/^path\(["']/, '').replace(/["']\)$/, '')}
+                          fill="none"
+                          stroke="#00ffff"
+                          strokeWidth="2"
+                          strokeOpacity="0.7"
+                          className="drop-shadow-lg"
+                        />
+                      )}
                     </svg>
                   )}
 

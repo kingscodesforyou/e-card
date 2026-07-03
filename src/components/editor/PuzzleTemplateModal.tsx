@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import type { PuzzleTemplate } from '../../types';
 import { puzzleCategories, getTemplatesByCategory } from './puzzleTemplates';
+import { parseClipPath, convertPercentToUnit } from '../../lib/clipPathUtils';
 
 interface PuzzleTemplateModalProps {
   isOpen: boolean;
@@ -33,25 +34,18 @@ export default function PuzzleTemplateModal({ isOpen, onClose, onSelect }: Puzzl
     setCurrentPage(page);
   };
 
-  const getClipPath = (cell: typeof template.cells[0]) => {
-    if (cell.shapePath) return cell.shapePath;
-    switch (cell.shapeType) {
-      case 'circle':
-        return 'circle(50%)';
-      case 'ellipse':
-        return 'ellipse(50% 50%)';
-      case 'triangle':
-        return 'polygon(50% 0%, 0% 100%, 100% 100%)';
-      case 'heart':
-        return 'polygon(50% 100%, 0% 35%, 25% 15%, 50% 40%, 75% 15%, 100% 35%)';
-      case 'hexagon':
-        return 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)';
-      default:
-        return undefined;
+  const getClipPathInfo = (cell: PuzzleTemplate['cells'][0], idx: number, templateId: string) => {
+    const info = parseClipPath(cell.shapePath, cell.shapeType);
+    if (info.useSvgClipPath && info.svgPathData) {
+      return {
+        ...info,
+        clipPathValue: `url(#template-clip-${templateId}-${idx})`,
+      };
     }
+    return info;
   };
 
-  const getBorderRadius = (cell: typeof template.cells[0]) => {
+  const getBorderRadius = (cell: PuzzleTemplate['cells'][0]) => {
     if (cell.shapeType === 'circle') return '50%';
     if (!cell.shapeType && !cell.shapePath) return '4px';
     return '0px';
@@ -60,8 +54,22 @@ export default function PuzzleTemplateModal({ isOpen, onClose, onSelect }: Puzzl
   const renderTemplatePreview = (template: PuzzleTemplate) => {
     return (
       <div className="relative w-full aspect-square bg-gray-100 rounded-lg overflow-hidden">
+        <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ width: '0', height: '0' }}>
+          {template.cells.map((cell, idx) => {
+            const info = getClipPathInfo(cell, idx, template.id);
+            if (info.useSvgClipPath && info.svgPathData) {
+              return (
+                <clipPath key={`clip-${idx}`} id={`template-clip-${template.id}-${idx}`} clipPathUnits="objectBoundingBox">
+                  <path d={convertPercentToUnit(info.svgPathData)} />
+                </clipPath>
+              );
+            }
+            return null;
+          })}
+        </svg>
         {template.cells.map((cell, idx) => {
-          const clipPath = getClipPath(cell);
+          const info = getClipPathInfo(cell, idx, template.id);
+          const clipPath = info.clipPathValue || undefined;
           return (
             <div
               key={idx}

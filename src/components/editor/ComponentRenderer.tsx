@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { CardElement, ComponentConfig } from '../../types';
 import { Heart, Eye, MapPin, Volume2, ChevronRight, PenTool, Play, Pause, RotateCcw, User, MessageSquare, FolderOpen, Menu, Image as ImageIcon } from 'lucide-react';
+import { parseClipPath, convertPercentToUnit } from '../../lib/clipPathUtils';
 
 // ============================================================
 // 拼图组件
@@ -26,22 +27,15 @@ export function PuzzleRenderer({ element }: { element: CardElement }) {
     }
   };
 
-  const getClipPath = (cell: typeof cells[0]) => {
-    if (cell.shapePath) return cell.shapePath;
-    switch (cell.shapeType) {
-      case 'circle':
-        return 'circle(50%)';
-      case 'ellipse':
-        return 'ellipse(50% 50%)';
-      case 'triangle':
-        return 'polygon(50% 0%, 0% 100%, 100% 100%)';
-      case 'heart':
-        return 'polygon(50% 100%, 0% 35%, 25% 15%, 50% 40%, 75% 15%, 100% 35%)';
-      case 'hexagon':
-        return 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)';
-      default:
-        return undefined;
+  const getClipPathInfo = (cell: typeof cells[0], idx: number) => {
+    const info = parseClipPath(cell.shapePath, cell.shapeType);
+    if (info.useSvgClipPath && info.svgPathData) {
+      return {
+        ...info,
+        clipPathValue: `url(#puzzle-clip-${idx})`,
+      };
     }
+    return info;
   };
 
   const getBorderRadius = (cell: typeof cells[0]) => {
@@ -62,8 +56,22 @@ export function PuzzleRenderer({ element }: { element: CardElement }) {
         padding: `${gap}px`,
       }}
     >
+      <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ width: '0', height: '0' }}>
+        {cells.map((cell, idx) => {
+          const info = getClipPathInfo(cell, idx);
+          if (info.useSvgClipPath && info.svgPathData) {
+            return (
+              <clipPath key={`clip-${idx}`} id={`puzzle-clip-${idx}`} clipPathUnits="objectBoundingBox">
+                <path d={convertPercentToUnit(info.svgPathData)} />
+              </clipPath>
+            );
+          }
+          return null;
+        })}
+      </svg>
       {cells.map((cell, idx) => {
-        const clipPath = getClipPath(cell);
+        const info = getClipPathInfo(cell, idx);
+        const clipPath = info.clipPathValue || undefined;
         return (
           <div
             key={idx}
