@@ -80,7 +80,7 @@ export default function PuzzleCellCropperModal({ isOpen, onClose, cell, onConfir
   const [previewUrl, setPreviewUrl] = useState('');
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+  const imageWrapperRef = useRef<HTMLDivElement>(null);
 
   const cropHistory = useMemo(() => cell.cropHistory || [], [cell.cropHistory]);
   const historyIndex = useMemo(() => cell.historyIndex ?? -1, [cell.historyIndex]);
@@ -182,17 +182,23 @@ export default function PuzzleCellCropperModal({ isOpen, onClose, cell, onConfir
     setPreviewUrl(croppedUrl);
   }, [image, cropArea]);
 
-  const getMousePosition = useCallback((e: React.MouseEvent) => {
-    if (!containerRef.current) return { x: 0, y: 0 };
-    const rect = containerRef.current.getBoundingClientRect();
+  // ============================================================
+  // 坐标转换：基于 imageWrapperRef（图片包裹层），消除居中偏移
+  // ============================================================
+  const getMousePosition = useCallback((clientX: number, clientY: number) => {
+    if (!imageWrapperRef.current) return { x: 0, y: 0 };
+    const rect = imageWrapperRef.current.getBoundingClientRect();
     return {
-      x: (e.clientX - rect.left) / scale,
-      y: (e.clientY - rect.top) / scale,
+      x: (clientX - rect.left) / scale,
+      y: (clientY - rect.top) / scale,
     };
   }, [scale]);
 
-  const detectDragType = useCallback((e: React.MouseEvent): DragType | null => {
-    const pos = getMousePosition(e);
+  // ============================================================
+  // 拖拽类型探测（用于裁剪区域内部点击）
+  // ============================================================
+  const detectDragType = useCallback((clientX: number, clientY: number): DragType | null => {
+    const pos = getMousePosition(clientX, clientY);
     const { x, y, width, height } = cropArea;
     const threshold = 10 / scale;
 
@@ -217,122 +223,276 @@ export default function PuzzleCellCropperModal({ isOpen, onClose, cell, onConfir
     return 'move';
   }, [cropArea, getMousePosition, scale]);
 
+  // ============================================================
+  // 鼠标按下：裁剪区域内部（通过位置探测判断拖拽类型）
+  // ============================================================
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    const type = detectDragType(e);
+    const type = detectDragType(e.clientX, e.clientY);
     if (!type) return;
 
     setIsDragging(true);
     setDragType(type);
-    setDragStart(getMousePosition(e));
+    setDragStart(getMousePosition(e.clientX, e.clientY));
     setCropStart({ ...cropArea });
   }, [cropArea, detectDragType, getMousePosition]);
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isDragging || !dragType || !cropStart) return;
+  // ============================================================
+  // 鼠标按下：手柄（直接指定拖拽类型，不依赖位置探测）
+  // ============================================================
+  const handleHandleMouseDown = useCallback((e: React.MouseEvent, type: DragType) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+    setDragType(type);
+    setDragStart(getMousePosition(e.clientX, e.clientY));
+    setCropStart({ ...cropArea });
+  }, [cropArea, getMousePosition]);
 
-    const currentPos = getMousePosition(e);
-    const dx = currentPos.x - dragStart.x;
-    const dy = currentPos.y - dragStart.y;
+  // ============================================================
+  // 拖拽状态 ref（供全局事件监听器读取最新值，避免闭包过期）
+  // ============================================================
+  const dragStateRef = useRef({
+    dragType: null as DragType | null,
+    cropStart: null as CropParams | null,
+    dragStart: { x: 0, y: 0 },
+    image: null as HTMLImageElement | null,
+    aspectRatio: null as number | null,
+    scale: 1,
+  });
 
-    let newCrop = { ...cropStart };
+  useEffect(() => {
+    dragStateRef.current = { dragType, cropStart, dragStart, image, aspectRatio, scale };
+  }, [dragType, cropStart, dragStart, image, aspectRatio, scale]);
 
-    switch (dragType) {
-      case 'move':
-        newCrop.x = Math.max(0, Math.min(image!.width - cropStart.width, cropStart.x + dx));
-        newCrop.y = Math.max(0, Math.min(image!.height - cropStart.height, cropStart.y + dy));
-        break;
-      case 'n':
-        newCrop.y = Math.max(0, cropStart.y + dy);
-        newCrop.height = Math.max(20, cropStart.height - dy);
-        if (aspectRatio) {
-          newCrop.width = newCrop.height * aspectRatio;
-        }
-        break;
-      case 's':
-        newCrop.height = Math.max(20, Math.min(image!.height - cropStart.y, cropStart.height + dy));
-        if (aspectRatio) {
-          newCrop.width = newCrop.height * aspectRatio;
-        }
-        break;
-      case 'w':
-        newCrop.x = Math.max(0, cropStart.x + dx);
-        newCrop.width = Math.max(20, cropStart.width - dx);
-        if (aspectRatio) {
-          newCrop.height = newCrop.width / aspectRatio;
-        }
-        break;
-      case 'e':
-        newCrop.width = Math.max(20, Math.min(image!.width - cropStart.x, cropStart.width + dx));
-        if (aspectRatio) {
-          newCrop.height = newCrop.width / aspectRatio;
-        }
-        break;
-      case 'nw':
-        newCrop.x = Math.max(0, cropStart.x + dx);
-        newCrop.y = Math.max(0, cropStart.y + dy);
-        newCrop.width = Math.max(20, cropStart.width - dx);
-        newCrop.height = Math.max(20, cropStart.height - dy);
-        if (aspectRatio) {
-          if (dragType.includes('n')) {
-            newCrop.width = newCrop.height * aspectRatio;
-            newCrop.x = Math.min(cropStart.x + dx, image!.width - newCrop.width);
+  // ============================================================
+  // 全局鼠标移动 / 鼠标松开（拖拽时挂载到 window，确保拖出容器仍生效）
+  // ============================================================
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const computeNewCrop = (
+      type: DragType,
+      start: CropParams,
+      startPos: { x: number; y: number },
+      currentPos: { x: number; y: number },
+      imgW: number,
+      imgH: number,
+      aspect: number | null
+    ): CropParams => {
+      const dx = currentPos.x - startPos.x;
+      const dy = currentPos.y - startPos.y;
+      let nc: CropParams = { ...start };
+
+      switch (type) {
+        case 'move':
+          nc.x = Math.max(0, Math.min(imgW - start.width, start.x + dx));
+          nc.y = Math.max(0, Math.min(imgH - start.height, start.y + dy));
+          break;
+
+        case 'n': {
+          const newY = Math.max(0, start.y + dy);
+          let newH = Math.max(20, start.height - (newY - start.y));
+          if (aspect) {
+            const newW = newH * aspect;
+            nc.x = Math.max(0, Math.min(imgW - newW, start.x + (start.width - newW) / 2));
+            nc.width = Math.min(newW, imgW - nc.x);
+            nc.height = nc.width / aspect;
+            nc.y = start.y + start.height - nc.height;
           } else {
-            newCrop.height = newCrop.width / aspectRatio;
-            newCrop.y = Math.min(cropStart.y + dy, image!.height - newCrop.height);
+            nc.y = newY;
+            nc.height = newH;
           }
+          break;
         }
-        break;
-      case 'ne':
-        newCrop.y = Math.max(0, cropStart.y + dy);
-        newCrop.width = Math.max(20, Math.min(image!.width - cropStart.x, cropStart.width + dx));
-        newCrop.height = Math.max(20, cropStart.height - dy);
-        if (aspectRatio) {
-          if (dragType.includes('n')) {
-            newCrop.width = newCrop.height * aspectRatio;
-          } else {
-            newCrop.height = newCrop.width / aspectRatio;
-            newCrop.y = Math.min(cropStart.y + dy, image!.height - newCrop.height);
-          }
-        }
-        break;
-      case 'sw':
-        newCrop.x = Math.max(0, cropStart.x + dx);
-        newCrop.width = Math.max(20, cropStart.width - dx);
-        newCrop.height = Math.max(20, Math.min(image!.height - cropStart.y, cropStart.height + dy));
-        if (aspectRatio) {
-          if (dragType.includes('s')) {
-            newCrop.width = newCrop.height * aspectRatio;
-            newCrop.x = Math.min(cropStart.x + dx, image!.width - newCrop.width);
-          } else {
-            newCrop.height = newCrop.width / aspectRatio;
-          }
-        }
-        break;
-      case 'se':
-        newCrop.width = Math.max(20, Math.min(image!.width - cropStart.x, cropStart.width + dx));
-        newCrop.height = Math.max(20, Math.min(image!.height - cropStart.y, cropStart.height + dy));
-        if (aspectRatio) {
-          if (dragType.includes('s')) {
-            newCrop.width = newCrop.height * aspectRatio;
-          } else {
-            newCrop.height = newCrop.width / aspectRatio;
-          }
-        }
-        break;
-    }
 
-    newCrop.x = Math.max(0, Math.min(image!.width - newCrop.width, newCrop.x));
-    newCrop.y = Math.max(0, Math.min(image!.height - newCrop.height, newCrop.y));
+        case 's': {
+          let newH = Math.max(20, Math.min(imgH - start.y, start.height + dy));
+          if (aspect) {
+            const newW = newH * aspect;
+            nc.x = Math.max(0, Math.min(imgW - newW, start.x + (start.width - newW) / 2));
+            nc.width = Math.min(newW, imgW - nc.x);
+            nc.height = nc.width / aspect;
+          } else {
+            nc.height = newH;
+          }
+          break;
+        }
 
-    setCropArea(newCrop);
-  }, [isDragging, dragType, cropStart, dragStart, image, aspectRatio, getMousePosition]);
+        case 'w': {
+          const newX = Math.max(0, start.x + dx);
+          let newW = Math.max(20, start.width - (newX - start.x));
+          if (aspect) {
+            const newHv = newW / aspect;
+            nc.y = Math.max(0, Math.min(imgH - newHv, start.y + (start.height - newHv) / 2));
+            nc.height = Math.min(newHv, imgH - nc.y);
+            nc.width = nc.height * aspect;
+            nc.x = start.x + start.width - nc.width;
+          } else {
+            nc.x = newX;
+            nc.width = newW;
+          }
+          break;
+        }
 
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
-    setDragType(null);
-    setCropStart(null);
-  }, []);
+        case 'e': {
+          let newW = Math.max(20, Math.min(imgW - start.x, start.width + dx));
+          if (aspect) {
+            const newHv = newW / aspect;
+            nc.y = Math.max(0, Math.min(imgH - newHv, start.y + (start.height - newHv) / 2));
+            nc.height = Math.min(newHv, imgH - nc.y);
+            nc.width = nc.height * aspect;
+          } else {
+            nc.width = newW;
+          }
+          break;
+        }
+
+        case 'nw': {
+          const newX = Math.max(0, start.x + dx);
+          const newY = Math.max(0, start.y + dy);
+          let newW = Math.max(20, start.width - (newX - start.x));
+          let newH = Math.max(20, start.height - (newY - start.y));
+          if (aspect) {
+            // 取较小的缩放比例，确保不超出边界
+            const ratioW = newW / start.width;
+            const ratioH = newH / start.height;
+            const ratio = Math.min(ratioW, ratioH);
+            newW = start.width * ratio;
+            newH = start.height * ratio;
+            if (aspect) {
+              if (newW / newH > aspect) {
+                newW = newH * aspect;
+              } else {
+                newH = newW / aspect;
+              }
+            }
+          }
+          nc.x = start.x + start.width - newW;
+          nc.y = start.y + start.height - newH;
+          nc.width = newW;
+          nc.height = newH;
+          break;
+        }
+
+        case 'ne': {
+          const newY = Math.max(0, start.y + dy);
+          let newW = Math.max(20, Math.min(imgW - start.x, start.width + dx));
+          let newH = Math.max(20, start.height - (newY - start.y));
+          if (aspect) {
+            const ratioW = newW / start.width;
+            const ratioH = newH / start.height;
+            const ratio = Math.min(ratioW, ratioH);
+            newW = start.width * ratio;
+            newH = start.height * ratio;
+            if (aspect) {
+              if (newW / newH > aspect) {
+                newW = newH * aspect;
+              } else {
+                newH = newW / aspect;
+              }
+            }
+          }
+          nc.y = start.y + start.height - newH;
+          nc.width = newW;
+          nc.height = newH;
+          break;
+        }
+
+        case 'sw': {
+          const newX = Math.max(0, start.x + dx);
+          let newW = Math.max(20, start.width - (newX - start.x));
+          let newH = Math.max(20, Math.min(imgH - start.y, start.height + dy));
+          if (aspect) {
+            const ratioW = newW / start.width;
+            const ratioH = newH / start.height;
+            const ratio = Math.min(ratioW, ratioH);
+            newW = start.width * ratio;
+            newH = start.height * ratio;
+            if (aspect) {
+              if (newW / newH > aspect) {
+                newW = newH * aspect;
+              } else {
+                newH = newW / aspect;
+              }
+            }
+          }
+          nc.x = start.x + start.width - newW;
+          nc.width = newW;
+          nc.height = newH;
+          break;
+        }
+
+        case 'se': {
+          let newW = Math.max(20, Math.min(imgW - start.x, start.width + dx));
+          let newH = Math.max(20, Math.min(imgH - start.y, start.height + dy));
+          if (aspect) {
+            const ratioW = newW / start.width;
+            const ratioH = newH / start.height;
+            const ratio = Math.min(ratioW, ratioH);
+            newW = start.width * ratio;
+            newH = start.height * ratio;
+            if (aspect) {
+              if (newW / newH > aspect) {
+                newW = newH * aspect;
+              } else {
+                newH = newW / aspect;
+              }
+            }
+          }
+          nc.width = newW;
+          nc.height = newH;
+          break;
+        }
+      }
+
+      // 全局边界约束
+      nc.x = Math.max(0, Math.min(imgW - nc.width, nc.x));
+      nc.y = Math.max(0, Math.min(imgH - nc.height, nc.y));
+      nc.width = Math.max(20, Math.min(imgW - nc.x, nc.width));
+      nc.height = Math.max(20, Math.min(imgH - nc.y, nc.height));
+
+      return nc;
+    };
+
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      const ds = dragStateRef.current;
+      if (!ds.dragType || !ds.cropStart || !ds.image) return;
+
+      const rect = imageWrapperRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      const currentPos = {
+        x: (e.clientX - rect.left) / ds.scale,
+        y: (e.clientY - rect.top) / ds.scale,
+      };
+
+      const newCrop = computeNewCrop(
+        ds.dragType,
+        ds.cropStart,
+        ds.dragStart,
+        currentPos,
+        ds.image.width,
+        ds.image.height,
+        ds.aspectRatio
+      );
+
+      setCropArea(newCrop);
+    };
+
+    const handleGlobalMouseUp = () => {
+      setIsDragging(false);
+      setDragType(null);
+      setCropStart(null);
+    };
+
+    window.addEventListener('mousemove', handleGlobalMouseMove);
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleGlobalMouseMove);
+      window.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [isDragging]);
 
   const handleUndo = useCallback(() => {
     if (!canUndo || historyIndex < 0) return;
@@ -405,10 +565,13 @@ export default function PuzzleCellCropperModal({ isOpen, onClose, cell, onConfir
 
   const shapePathValue = renderShapePath(cell.shapePath);
 
+  // 手柄通用样式
+  const handleBaseClass = 'absolute w-3 h-3 bg-white rounded-full border-2 border-gray-400 shadow-sm';
+
   return (
     <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-[900px] max-w-[95vw] max-h-[90vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 flex-shrink-0">
+      <div className="bg-white rounded-xl shadow-2xl w-[860px] max-w-[95vw] max-h-[88vh] flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 shrink-0">
           <h2 className="text-lg font-semibold text-gray-800">子图裁剪</h2>
           <button
             onClick={onClose}
@@ -418,7 +581,7 @@ export default function PuzzleCellCropperModal({ isOpen, onClose, cell, onConfir
           </button>
         </div>
 
-        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+        <div className="px-5 py-2.5 border-b border-gray-100 flex items-center justify-between shrink-0">
           <div className="flex gap-2">
             <button
               onClick={handleReset}
@@ -458,17 +621,16 @@ export default function PuzzleCellCropperModal({ isOpen, onClose, cell, onConfir
           </span>
         </div>
 
-        <div className="flex-1 flex overflow-hidden min-h-0">
-          <div className="relative bg-gray-900 flex-1 overflow-auto min-h-0">
+        <div className="flex-1 flex min-h-0">
+          <div className="relative bg-gray-900 flex-1 min-h-[200px]">
             <div
               ref={containerRef}
               className="relative w-full h-full flex items-center justify-center overflow-hidden"
               onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
             >
+              {/* 图片包裹层 —— getMousePosition 基于此元素计算坐标，消除居中偏移 */}
               <div
+                ref={imageWrapperRef}
                 className="relative"
                 style={{
                   width: image.width * scale,
@@ -478,18 +640,18 @@ export default function PuzzleCellCropperModal({ isOpen, onClose, cell, onConfir
                 <img
                   src={image.src}
                   alt="crop"
-                  style={{
-                    width: image.width * scale,
-                    height: image.height * scale,
-                  }}
+                  style={imageStyle}
                   className="pointer-events-none"
+                  draggable={false}
                 />
 
+                {/* 四向遮罩 */}
                 <div className="absolute top-0 left-0 right-0 bg-black/50 pointer-events-none" style={{ height: cropArea.y * scale }} />
                 <div className="absolute bottom-0 left-0 right-0 bg-black/50 pointer-events-none" style={{ height: (image.height - cropArea.y - cropArea.height) * scale }} />
                 <div className="absolute top-0 bottom-0 left-0 bg-black/50 pointer-events-none" style={{ width: cropArea.x * scale }} />
                 <div className="absolute top-0 bottom-0 right-0 bg-black/50 pointer-events-none" style={{ width: (image.width - cropArea.x - cropArea.width) * scale }} />
 
+                {/* 裁剪区域 */}
                 <div
                   className="absolute bg-transparent border-2 border-white pointer-events-auto cursor-move"
                   style={cropStyle}
@@ -498,6 +660,7 @@ export default function PuzzleCellCropperModal({ isOpen, onClose, cell, onConfir
                     handleMouseDown(e);
                   }}
                 >
+                  {/* 形状轮廓指引 */}
                   {shapePathValue && (
                     <svg className="absolute inset-0 w-full h-full pointer-events-none">
                       <defs>
@@ -516,31 +679,65 @@ export default function PuzzleCellCropperModal({ isOpen, onClose, cell, onConfir
                     </svg>
                   )}
 
-                  <div className="absolute w-3 h-3 -top-1.5 -left-1.5 bg-white rounded-full border-2 border-gray-400 cursor-nw-resize" />
-                  <div className="absolute w-3 h-3 -top-1.5 -right-1.5 bg-white rounded-full border-2 border-gray-400 cursor-ne-resize" />
-                  <div className="absolute w-3 h-3 -bottom-1.5 -left-1.5 bg-white rounded-full border-2 border-gray-400 cursor-sw-resize" />
-                  <div className="absolute w-3 h-3 -bottom-1.5 -right-1.5 bg-white rounded-full border-2 border-gray-400 cursor-se-resize" />
+                  {/* 四角手柄 —— 每个手柄绑定明确的 onMouseDown 拖拽类型 */}
+                  <div
+                    className={`${handleBaseClass} cursor-nw-resize`}
+                    style={{ top: '-6px', left: '-6px' }}
+                    onMouseDown={(e) => handleHandleMouseDown(e, 'nw')}
+                  />
+                  <div
+                    className={`${handleBaseClass} cursor-ne-resize`}
+                    style={{ top: '-6px', right: '-6px' }}
+                    onMouseDown={(e) => handleHandleMouseDown(e, 'ne')}
+                  />
+                  <div
+                    className={`${handleBaseClass} cursor-sw-resize`}
+                    style={{ bottom: '-6px', left: '-6px' }}
+                    onMouseDown={(e) => handleHandleMouseDown(e, 'sw')}
+                  />
+                  <div
+                    className={`${handleBaseClass} cursor-se-resize`}
+                    style={{ bottom: '-6px', right: '-6px' }}
+                    onMouseDown={(e) => handleHandleMouseDown(e, 'se')}
+                  />
 
-                  <div className="absolute w-3 h-3 -top-1.5 left-1/2 -translate-x-1/2 bg-white rounded-full border-2 border-gray-400 cursor-n-resize" />
-                  <div className="absolute w-3 h-3 -bottom-1.5 left-1/2 -translate-x-1/2 bg-white rounded-full border-2 border-gray-400 cursor-s-resize" />
-                  <div className="absolute w-3 h-3 -left-1.5 top-1/2 -translate-y-1/2 bg-white rounded-full border-2 border-gray-400 cursor-w-resize" />
-                  <div className="absolute w-3 h-3 -right-1.5 top-1/2 -translate-y-1/2 bg-white rounded-full border-2 border-gray-400 cursor-e-resize" />
+                  {/* 四边中点手柄 */}
+                  <div
+                    className={`${handleBaseClass} cursor-n-resize`}
+                    style={{ top: '-6px', left: '50%', transform: 'translateX(-50%)' }}
+                    onMouseDown={(e) => handleHandleMouseDown(e, 'n')}
+                  />
+                  <div
+                    className={`${handleBaseClass} cursor-s-resize`}
+                    style={{ bottom: '-6px', left: '50%', transform: 'translateX(-50%)' }}
+                    onMouseDown={(e) => handleHandleMouseDown(e, 's')}
+                  />
+                  <div
+                    className={`${handleBaseClass} cursor-w-resize`}
+                    style={{ left: '-6px', top: '50%', transform: 'translateY(-50%)' }}
+                    onMouseDown={(e) => handleHandleMouseDown(e, 'w')}
+                  />
+                  <div
+                    className={`${handleBaseClass} cursor-e-resize`}
+                    style={{ right: '-6px', top: '50%', transform: 'translateY(-50%)' }}
+                    onMouseDown={(e) => handleHandleMouseDown(e, 'e')}
+                  />
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="w-40 sm:w-48 bg-gray-50 border-l border-gray-100 flex flex-col">
-            <div className="px-3 py-2 border-b border-gray-100">
+          <div className="w-48 bg-gray-50 border-l border-gray-100 flex flex-col min-h-0">
+            <div className="px-3 py-2 border-b border-gray-100 shrink-0">
               <span className="text-xs text-gray-500">裁剪预览</span>
             </div>
-            <div className="flex-1 flex items-center justify-center p-2 overflow-auto">
+            <div className="flex-1 flex items-center justify-center p-3 min-h-0 overflow-hidden">
               {previewUrl && (
                 <div className="relative">
                   <img
                     src={previewUrl}
                     alt="preview"
-                    className="max-w-full max-h-[150px] sm:max-h-[200px] object-contain rounded-lg shadow-md"
+                    className="max-w-full max-h-[160px] object-contain rounded-lg shadow-md"
                     style={{
                       clipPath: shapePathValue || undefined,
                     }}
@@ -559,7 +756,7 @@ export default function PuzzleCellCropperModal({ isOpen, onClose, cell, onConfir
                 </div>
               )}
             </div>
-            <div className="px-2 py-2 border-t border-gray-100">
+            <div className="px-3 py-2 border-t border-gray-100 shrink-0">
               <div className="text-xs text-gray-400 space-y-0.5">
                 <div>原图: {image.width} × {image.height}</div>
                 <div>裁剪: {Math.round(cropArea.x)}, {Math.round(cropArea.y)}</div>
@@ -569,7 +766,7 @@ export default function PuzzleCellCropperModal({ isOpen, onClose, cell, onConfir
           </div>
         </div>
 
-        <div className="px-5 py-4 border-t border-gray-100 flex items-center justify-end gap-3 flex-shrink-0">
+        <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-end gap-3 shrink-0">
           <button
             onClick={onClose}
             className="px-5 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
