@@ -4,8 +4,9 @@
  */
 import { useState } from 'react';
 import { useEditorStore } from '../../store';
-import type { CardElement, ComponentConfig } from '../../types';
+import type { CardElement, ComponentConfig, CropParams } from '../../types';
 import ImageCropperModal from './ImageCropperModal';
+import PuzzleCellCropperModal from './PuzzleCellCropperModal';
 
 interface ComponentPropertyEditorProps {
   element: CardElement;
@@ -57,7 +58,7 @@ export function PuzzlePropertyEditor({ element }: ComponentPropertyEditorProps) 
         reader.onload = (e) => resolve(e.target?.result as string);
         reader.readAsDataURL(files[0]);
       });
-      updateCell(index, { imageUrl: url });
+      updateCell(index, { imageUrl: url, originalImageUrl: url, cropParams: undefined, cropHistory: undefined, historyIndex: undefined });
     };
     input.click();
   };
@@ -121,7 +122,7 @@ export function PuzzlePropertyEditor({ element }: ComponentPropertyEditorProps) 
                   </button>
                   <button
                     className="flex-1 py-1.5 border border-red-200 rounded-lg text-xs text-red-500 hover:bg-red-50"
-                    onClick={() => updateCell(selectedCellIndex, { imageUrl: undefined })}
+                    onClick={() => updateCell(selectedCellIndex, { imageUrl: undefined, originalImageUrl: undefined, cropParams: undefined, cropHistory: undefined, historyIndex: undefined })}
                   >
                     移除图片
                   </button>
@@ -309,17 +310,38 @@ export function PuzzlePropertyEditor({ element }: ComponentPropertyEditorProps) 
         </div>
       </div>
 
-      {croppingIndex !== null && cells[croppingIndex]?.imageUrl && (
-        <ImageCropperModal
-          isOpen={croppingIndex !== null}
-          onClose={() => setCroppingIndex(null)}
-          imageUrl={cells[croppingIndex].imageUrl!}
-          onConfirm={(croppedUrl) => {
-            updateCell(croppingIndex, { imageUrl: croppedUrl });
-            setCroppingIndex(null);
-          }}
-        />
-      )}
+      {croppingIndex !== null && cells[croppingIndex]?.originalImageUrl && (
+      <PuzzleCellCropperModal
+        isOpen={croppingIndex !== null}
+        onClose={() => setCroppingIndex(null)}
+        cell={cells[croppingIndex]}
+        onConfirm={(cropParams: CropParams, cropHistory: CropParams[], historyIndex: number) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = cropParams.width;
+            canvas.height = cropParams.height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(
+                img,
+                cropParams.x,
+                cropParams.y,
+                cropParams.width,
+                cropParams.height,
+                0,
+                0,
+                cropParams.width,
+                cropParams.height
+              );
+              const croppedUrl = canvas.toDataURL('image/png');
+              updateCell(croppingIndex, { imageUrl: croppedUrl, cropParams, cropHistory, historyIndex });
+            }
+          };
+          img.src = cells[croppingIndex].originalImageUrl!;
+        }}
+      />
+    )}
     </div>
   );
 }

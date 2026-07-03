@@ -11,12 +11,23 @@ export interface ElementAnimation {
 
 export type ShapeType = 'rectangle' | 'circle' | 'ellipse' | 'triangle' | 'polygon' | 'heart' | 'hexagon' | 'custom';
 
+export interface CropParams {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface PuzzleCell {
   x: number;
   y: number;
   width: number;
   height: number;
   imageUrl?: string;
+  originalImageUrl?: string;
+  cropParams?: CropParams;
+  cropHistory?: CropParams[];
+  historyIndex?: number;
   borderWidth?: number;
   borderColor?: string;
   opacity?: number;
@@ -30,7 +41,7 @@ export interface PuzzleTemplate {
   id: string;
   name: string;
   category: number;
-  cells: { x: number; y: number; width: number; height: number }[];
+  cells: { x: number; y: number; width: number; height: number; shapeType?: ShapeType; shapePath?: string }[];
 }
 
 // 组件库高级组件配置
