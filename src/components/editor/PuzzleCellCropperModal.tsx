@@ -1,17 +1,23 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { X, Undo2, Redo2, RotateCcw } from 'lucide-react';
-import type { CropParams, PuzzleCell } from '../../types';
+import { X, RotateCcw, ZoomIn, ZoomOut, Move } from 'lucide-react';
+import type { PuzzleCell, ImageTransform } from '../../types';
 import { parseClipPath, convertPercentToUnit } from '../../lib/clipPathUtils';
 
 interface PuzzleCellCropperModalProps {
   isOpen: boolean;
   onClose: () => void;
   cell: PuzzleCell;
-  onConfirm: (cropParams: CropParams, cropHistory: CropParams[], historyIndex: number) => void;
+  onConfirm: (
+    croppedImageUrl: string,
+    transform: ImageTransform,
+    transformHistory: ImageTransform[],
+    historyIndex: number
+  ) => void;
 }
 
-type DragType = 'move' | 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
-
+// ============================================================
+// 图片缓存 —— 避免重复加载同一张原图
+// ============================================================
 const imageCache = new Map<string, HTMLImageElement>();
 
 function getCachedImage(url: string): Promise<HTMLImageElement> {
@@ -32,560 +38,468 @@ function getCachedImage(url: string): Promise<HTMLImageElement> {
   });
 }
 
-function generateCroppedImage(image: HTMLImageElement, cropParams: CropParams): string {
-  const canvas = document.createElement('canvas');
-  canvas.width = cropParams.width;
-  canvas.height = cropParams.height;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return image.src;
-  ctx.drawImage(
-    image,
-    cropParams.x,
-    cropParams.y,
-    cropParams.width,
-    cropParams.height,
-    0,
-    0,
-    cropParams.width,
-    cropParams.height
-  );
-  return canvas.toDataURL('image/png');
+// ============================================================
+// 计算默认变换 —— 让图片居中覆盖整个画布
+// ============================================================
+function computeDefaultTransform(
+  imgW: number,
+  imgH: number,
+  canvasW: number,
+  canvasH: number
+): ImageTransform {
+  const scale = Math.max(canvasW / imgW, canvasH / imgH);
+  const x = (canvasW - imgW * scale) / 2;
+  const y = (canvasH - imgH * scale) / 2;
+  return { x, y, scale };
 }
 
-function renderShapePath(shapePath: string | undefined, shapeType: string | undefined): string {
-  if (shapePath) {
-    return shapePath;
+// ============================================================
+// 核心绘制函数 —— 在给定 ctx 上按形状裁剪绘制图片
+//
+// 关键技巧：单位坐标 (0–1) 的 SVG path 无法直接用于像素级裁剪，
+// 这里通过 ctx.scale(canvasW, canvasH) 将上下文缩放到单位空间，
+// 再 ctx.clip(unitPath) 完成裁剪，最后用 ctx.setTransform 恢复
+// 到 DPR 缩放状态（clip 不受 setTransform 影响，仍然保留）。
+// ============================================================
+function drawShapedImage(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  transform: ImageTransform,
+  canvasW: number,
+  canvasH: number,
+  dpr: number,
+  unitPath: Path2D | null,
+  drawOverlay: boolean
+) {
+  // ---- 重置变换矩阵并清空画布 ----
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+  // ---- 设置 DPR 缩放，后续坐标全部使用 CSS 像素 ----
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  // ---- 1. 绘制半透明遮罩 ----
+  if (drawOverlay) {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+    ctx.fillRect(0, 0, canvasW, canvasH);
   }
-  
-  switch (shapeType) {
-    case 'circle':
-      return 'circle(50%)';
-    case 'ellipse':
-      return 'ellipse(50% 50%)';
-    case 'triangle':
-      return 'polygon(50% 0%, 0% 100%, 100% 100%)';
-    case 'heart':
-      return 'polygon(50% 100%, 0% 35%, 25% 15%, 50% 40%, 75% 15%, 100% 35%)';
-    case 'hexagon':
-      return 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)';
-    default:
-      return '';
+
+  // ---- 2. 在形状裁剪区域内绘制变换后的原图 ----
+  ctx.save();
+  if (unitPath) {
+    // 缩放到单位坐标空间 → clip → 恢复到 DPR 空间（clip 保留）
+    ctx.scale(canvasW, canvasH);
+    ctx.clip(unitPath);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  } else {
+    // 无形状时裁剪到整个画布
+    ctx.beginPath();
+    ctx.rect(0, 0, canvasW, canvasH);
+    ctx.clip();
+  }
+  // 应用图片位移和缩放
+  ctx.translate(transform.x, transform.y);
+  ctx.scale(transform.scale, transform.scale);
+  ctx.drawImage(image, 0, 0);
+  ctx.restore();
+
+  // ---- 3. 绘制形状白色边框（仅在预览模式下绘制） ----
+  if (drawOverlay) {
+    ctx.save();
+    if (unitPath) {
+      ctx.scale(canvasW, canvasH);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2 / (dpr * Math.max(canvasW, canvasH));
+      ctx.stroke(unitPath);
+    } else {
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(0.5, 0.5, canvasW - 1, canvasH - 1);
+    }
+    ctx.restore();
   }
 }
 
-function getShapeSvgPath(shapePath: string | undefined, shapeType: string | undefined): string {
-  const info = parseClipPath(shapePath, shapeType);
-  if (info.useSvgClipPath && info.svgPathData) {
-    return convertPercentToUnit(info.svgPathData);
-  }
-  return '';
-}
+const MAX_SCALE = 10;
+const MIN_SCALE = 0.1;
+const CANVAS_MAX_DIM = 480; // 弹窗中画布的最大边长（CSS 像素）
 
-export default function PuzzleCellCropperModal({ isOpen, onClose, cell, onConfirm }: PuzzleCellCropperModalProps) {
+export default function PuzzleCellCropperModal({
+  isOpen,
+  onClose,
+  cell,
+  onConfirm,
+}: PuzzleCellCropperModalProps) {
   const [image, setImage] = useState<HTMLImageElement | null>(null);
-  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
-  const [scale, setScale] = useState(1);
-  const [cropArea, setCropArea] = useState<CropParams>({ x: 0, y: 0, width: 0, height: 0 });
+  const [transform, setTransform] = useState<ImageTransform>({ x: 0, y: 0, scale: 1 });
   const [isDragging, setIsDragging] = useState(false);
-  const [dragType, setDragType] = useState<DragType | null>(null);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [cropStart, setCropStart] = useState<CropParams | null>(null);
-  const [previewUrl, setPreviewUrl] = useState('');
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const imageWrapperRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const cropHistory = useMemo(() => cell.cropHistory || [], [cell.cropHistory]);
-  const historyIndex = useMemo(() => cell.historyIndex ?? -1, [cell.historyIndex]);
+  // 拖拽状态 ref —— 供全局事件监听器读取最新值，避免闭包过期
+  const dragStateRef = useRef({
+    isDragging: false,
+    startMouseX: 0,
+    startMouseY: 0,
+    startTransformX: 0,
+    startTransformY: 0,
+  });
 
-  const aspectRatio = useMemo(() => {
-    if (!cell.width || !cell.height) return null;
-    return cell.width / cell.height;
+  const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+
+  // ============================================================
+  // 画布尺寸 —— 根据子图宽高比计算，保持与子图一致的纵横比
+  // ============================================================
+  const { canvasWidth, canvasHeight } = useMemo(() => {
+    const aspect = cell.width && cell.height ? cell.width / cell.height : 1;
+    let w: number, h: number;
+    if (aspect >= 1) {
+      w = CANVAS_MAX_DIM;
+      h = Math.round(CANVAS_MAX_DIM / aspect);
+    } else {
+      h = CANVAS_MAX_DIM;
+      w = Math.round(CANVAS_MAX_DIM * aspect);
+    }
+    return { canvasWidth: w, canvasHeight: h };
   }, [cell.width, cell.height]);
 
-  const canUndo = historyIndex >= 0;
-  const canRedo = historyIndex < cropHistory.length - 1;
+  // ============================================================
+  // 形状路径信息 —— parseClipPath 返回单位坐标 (0–1) 的 SVG path
+  // ============================================================
+  const shapeInfo = useMemo(
+    () => parseClipPath(cell.shapePath, cell.shapeType),
+    [cell.shapePath, cell.shapeType]
+  );
 
+  const hasShape = shapeInfo.useSvgClipPath && !!shapeInfo.svgPathData;
+
+  // 创建单位坐标 Path2D
+  // 注意：path() 格式的心形路径带有百分号（如 M50% 27.5%），需要先调用
+  // convertPercentToUnit 将 50% → 0.5，否则 Path2D 会因 % 而静默失败
+  const unitPath = useMemo(() => {
+    if (!hasShape || !shapeInfo.svgPathData) return null;
+    try {
+      const unitPathData = convertPercentToUnit(shapeInfo.svgPathData);
+      return new Path2D(unitPathData);
+    } catch {
+      return null;
+    }
+  }, [hasShape, shapeInfo.svgPathData]);
+
+  // ============================================================
+  // 变换历史
+  // ============================================================
+  const transformHistory = useMemo(
+    () => cell.transformHistory || [],
+    [cell.transformHistory]
+  );
+  const historyIndex = useMemo(
+    () => cell.transformHistoryIndex ?? -1,
+    [cell.transformHistoryIndex]
+  );
+
+  // ============================================================
+  // 加载原图
+  // ============================================================
   useEffect(() => {
     if (!isOpen) {
       setImage(null);
-      setCropArea({ x: 0, y: 0, width: 0, height: 0 });
-      setPreviewUrl('');
       return;
     }
-
     if (!cell.originalImageUrl) {
       onClose();
       return;
     }
-
-    getCachedImage(cell.originalImageUrl).then(setImage).catch(() => {
-      onClose();
-    });
-
+    let cancelled = false;
+    getCachedImage(cell.originalImageUrl)
+      .then((img) => {
+        if (!cancelled) setImage(img);
+      })
+      .catch(() => {
+        if (!cancelled) onClose();
+      });
     return () => {
-      setImage(null);
+      cancelled = true;
     };
   }, [isOpen, cell.originalImageUrl, onClose]);
 
-  useEffect(() => {
-    if (!image || !containerRef.current) return;
-
-    const container = containerRef.current;
-
-    const updateDimensions = () => {
-      const rect = container.getBoundingClientRect();
-      setContainerSize({ width: rect.width, height: rect.height });
-
-      const imgRatio = image.width / image.height;
-      const containerRatio = rect.width / rect.height;
-
-      let newScale: number;
-      if (imgRatio > containerRatio) {
-        newScale = rect.width / image.width;
-      } else {
-        newScale = rect.height / image.height;
-      }
-      setScale(newScale);
-
-      let cropWidth: number, cropHeight: number;
-
-      if (aspectRatio) {
-        const maxWidth = image.width;
-        const maxHeight = image.height;
-        const testHeight = maxWidth / aspectRatio;
-        if (testHeight <= maxHeight) {
-          cropWidth = maxWidth;
-          cropHeight = testHeight;
-        } else {
-          cropHeight = maxHeight;
-          cropWidth = maxHeight * aspectRatio;
-        }
-      } else {
-        cropWidth = Math.min(image.width, rect.width / newScale) * 0.8;
-        cropHeight = Math.min(image.height, rect.height / newScale) * 0.8;
-      }
-
-      const savedParams = cropHistory[historyIndex];
-      if (savedParams) {
-        setCropArea(savedParams);
-      } else {
-        setCropArea({
-          x: (image.width - cropWidth) / 2,
-          y: (image.height - cropHeight) / 2,
-          width: cropWidth,
-          height: cropHeight,
-        });
-      }
-    };
-
-    updateDimensions();
-
-    const resizeObserver = new ResizeObserver(updateDimensions);
-    resizeObserver.observe(container);
-
-    return () => {
-      resizeObserver.disconnect();
-    };
-  }, [image, isOpen, aspectRatio, cropHistory, historyIndex]);
-
+  // ============================================================
+  // 初始化变换参数
+  // ============================================================
   useEffect(() => {
     if (!image) return;
-    const croppedUrl = generateCroppedImage(image, cropArea);
-    setPreviewUrl(croppedUrl);
-  }, [image, cropArea]);
+
+    const savedTransform = transformHistory[historyIndex];
+    if (savedTransform) {
+      setTransform(savedTransform);
+    } else if (cell.transform) {
+      setTransform(cell.transform);
+    } else {
+      setTransform(
+        computeDefaultTransform(image.width, image.height, canvasWidth, canvasHeight)
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [image, canvasWidth, canvasHeight]);
 
   // ============================================================
-  // 坐标转换：基于 imageWrapperRef（图片包裹层），消除居中偏移
+  // Canvas 尺寸初始化 —— 仅在尺寸/DPR 变化时执行（不频繁重置）
   // ============================================================
-  const getMousePosition = useCallback((clientX: number, clientY: number) => {
-    if (!imageWrapperRef.current) return { x: 0, y: 0 };
-    const rect = imageWrapperRef.current.getBoundingClientRect();
-    return {
-      x: (clientX - rect.left) / scale,
-      y: (clientY - rect.top) / scale,
-    };
-  }, [scale]);
-
-  // ============================================================
-  // 拖拽类型探测（用于裁剪区域内部点击）
-  // ============================================================
-  const detectDragType = useCallback((clientX: number, clientY: number): DragType | null => {
-    const pos = getMousePosition(clientX, clientY);
-    const { x, y, width, height } = cropArea;
-    const threshold = 10 / scale;
-
-    const inXRange = pos.x >= x - threshold && pos.x <= x + width + threshold;
-    const inYRange = pos.y >= y - threshold && pos.y <= y + height + threshold;
-
-    if (!inXRange || !inYRange) return null;
-
-    const nearLeft = Math.abs(pos.x - x) <= threshold;
-    const nearRight = Math.abs(pos.x - (x + width)) <= threshold;
-    const nearTop = Math.abs(pos.y - y) <= threshold;
-    const nearBottom = Math.abs(pos.y - (y + height)) <= threshold;
-
-    if (nearTop && nearLeft) return 'nw';
-    if (nearTop && nearRight) return 'ne';
-    if (nearBottom && nearLeft) return 'sw';
-    if (nearBottom && nearRight) return 'se';
-    if (nearTop) return 'n';
-    if (nearBottom) return 's';
-    if (nearLeft) return 'w';
-    if (nearRight) return 'e';
-    return 'move';
-  }, [cropArea, getMousePosition, scale]);
-
-  // ============================================================
-  // 鼠标按下：裁剪区域内部（通过位置探测判断拖拽类型）
-  // ============================================================
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    const type = detectDragType(e.clientX, e.clientY);
-    if (!type) return;
-
-    setIsDragging(true);
-    setDragType(type);
-    setDragStart(getMousePosition(e.clientX, e.clientY));
-    setCropStart({ ...cropArea });
-  }, [cropArea, detectDragType, getMousePosition]);
-
-  // ============================================================
-  // 鼠标按下：手柄（直接指定拖拽类型，不依赖位置探测）
-  // ============================================================
-  const handleHandleMouseDown = useCallback((e: React.MouseEvent, type: DragType) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-    setDragType(type);
-    setDragStart(getMousePosition(e.clientX, e.clientY));
-    setCropStart({ ...cropArea });
-  }, [cropArea, getMousePosition]);
-
-  // ============================================================
-  // 拖拽状态 ref（供全局事件监听器读取最新值，避免闭包过期）
-  // ============================================================
-  const dragStateRef = useRef({
-    dragType: null as DragType | null,
-    cropStart: null as CropParams | null,
-    dragStart: { x: 0, y: 0 },
-    image: null as HTMLImageElement | null,
-    aspectRatio: null as number | null,
-    scale: 1,
-  });
-
   useEffect(() => {
-    dragStateRef.current = { dragType, cropStart, dragStart, image, aspectRatio, scale };
-  }, [dragType, cropStart, dragStart, image, aspectRatio, scale]);
+    const canvas = canvasRef.current;
+    if (!canvas || !image) return;
+    canvas.style.width = `${canvasWidth}px`;
+    canvas.style.height = `${canvasHeight}px`;
+    canvas.width = Math.round(canvasWidth * dpr);
+    canvas.height = Math.round(canvasHeight * dpr);
+  }, [image, canvasWidth, canvasHeight, dpr]);
 
   // ============================================================
-  // 全局鼠标移动 / 鼠标松开（拖拽时挂载到 window，确保拖出容器仍生效）
+  // 重绘 effect —— 任何绘制相关状态变化时立即重绘
+  // 注意：这里不重设 canvas.width/height，避免清空画布
+  // ============================================================
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !image) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    drawShapedImage(
+      ctx,
+      image,
+      transform,
+      canvasWidth,
+      canvasHeight,
+      dpr,
+      unitPath,
+      true // drawOverlay = true，绘制遮罩和边框
+    );
+  }, [image, transform, canvasWidth, canvasHeight, dpr, unitPath]);
+
+  // ============================================================
+  // 拖拽：鼠标按下
+  // ============================================================
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      dragStateRef.current = {
+        isDragging: true,
+        startMouseX: e.clientX - rect.left,
+        startMouseY: e.clientY - rect.top,
+        startTransformX: transform.x,
+        startTransformY: transform.y,
+      };
+      setIsDragging(true);
+    },
+    [transform]
+  );
+
+  // ============================================================
+  // 全局鼠标移动 / 松开 —— 确保拖出画布仍生效
   // ============================================================
   useEffect(() => {
     if (!isDragging) return;
 
-    const computeNewCrop = (
-      type: DragType,
-      start: CropParams,
-      startPos: { x: number; y: number },
-      currentPos: { x: number; y: number },
-      imgW: number,
-      imgH: number,
-      aspect: number | null
-    ): CropParams => {
-      const dx = currentPos.x - startPos.x;
-      const dy = currentPos.y - startPos.y;
-      let nc: CropParams = { ...start };
-
-      switch (type) {
-        case 'move':
-          nc.x = Math.max(0, Math.min(imgW - start.width, start.x + dx));
-          nc.y = Math.max(0, Math.min(imgH - start.height, start.y + dy));
-          break;
-
-        case 'n': {
-          const newY = Math.max(0, start.y + dy);
-          let newH = Math.max(20, start.height - (newY - start.y));
-          if (aspect) {
-            const newW = newH * aspect;
-            nc.x = Math.max(0, Math.min(imgW - newW, start.x + (start.width - newW) / 2));
-            nc.width = Math.min(newW, imgW - nc.x);
-            nc.height = nc.width / aspect;
-            nc.y = start.y + start.height - nc.height;
-          } else {
-            nc.y = newY;
-            nc.height = newH;
-          }
-          break;
-        }
-
-        case 's': {
-          let newH = Math.max(20, Math.min(imgH - start.y, start.height + dy));
-          if (aspect) {
-            const newW = newH * aspect;
-            nc.x = Math.max(0, Math.min(imgW - newW, start.x + (start.width - newW) / 2));
-            nc.width = Math.min(newW, imgW - nc.x);
-            nc.height = nc.width / aspect;
-          } else {
-            nc.height = newH;
-          }
-          break;
-        }
-
-        case 'w': {
-          const newX = Math.max(0, start.x + dx);
-          let newW = Math.max(20, start.width - (newX - start.x));
-          if (aspect) {
-            const newHv = newW / aspect;
-            nc.y = Math.max(0, Math.min(imgH - newHv, start.y + (start.height - newHv) / 2));
-            nc.height = Math.min(newHv, imgH - nc.y);
-            nc.width = nc.height * aspect;
-            nc.x = start.x + start.width - nc.width;
-          } else {
-            nc.x = newX;
-            nc.width = newW;
-          }
-          break;
-        }
-
-        case 'e': {
-          let newW = Math.max(20, Math.min(imgW - start.x, start.width + dx));
-          if (aspect) {
-            const newHv = newW / aspect;
-            nc.y = Math.max(0, Math.min(imgH - newHv, start.y + (start.height - newHv) / 2));
-            nc.height = Math.min(newHv, imgH - nc.y);
-            nc.width = nc.height * aspect;
-          } else {
-            nc.width = newW;
-          }
-          break;
-        }
-
-        case 'nw': {
-          const newX = Math.max(0, start.x + dx);
-          const newY = Math.max(0, start.y + dy);
-          let newW = Math.max(20, start.width - (newX - start.x));
-          let newH = Math.max(20, start.height - (newY - start.y));
-          if (aspect) {
-            // 取较小的缩放比例，确保不超出边界
-            const ratioW = newW / start.width;
-            const ratioH = newH / start.height;
-            const ratio = Math.min(ratioW, ratioH);
-            newW = start.width * ratio;
-            newH = start.height * ratio;
-            if (aspect) {
-              if (newW / newH > aspect) {
-                newW = newH * aspect;
-              } else {
-                newH = newW / aspect;
-              }
-            }
-          }
-          nc.x = start.x + start.width - newW;
-          nc.y = start.y + start.height - newH;
-          nc.width = newW;
-          nc.height = newH;
-          break;
-        }
-
-        case 'ne': {
-          const newY = Math.max(0, start.y + dy);
-          let newW = Math.max(20, Math.min(imgW - start.x, start.width + dx));
-          let newH = Math.max(20, start.height - (newY - start.y));
-          if (aspect) {
-            const ratioW = newW / start.width;
-            const ratioH = newH / start.height;
-            const ratio = Math.min(ratioW, ratioH);
-            newW = start.width * ratio;
-            newH = start.height * ratio;
-            if (aspect) {
-              if (newW / newH > aspect) {
-                newW = newH * aspect;
-              } else {
-                newH = newW / aspect;
-              }
-            }
-          }
-          nc.y = start.y + start.height - newH;
-          nc.width = newW;
-          nc.height = newH;
-          break;
-        }
-
-        case 'sw': {
-          const newX = Math.max(0, start.x + dx);
-          let newW = Math.max(20, start.width - (newX - start.x));
-          let newH = Math.max(20, Math.min(imgH - start.y, start.height + dy));
-          if (aspect) {
-            const ratioW = newW / start.width;
-            const ratioH = newH / start.height;
-            const ratio = Math.min(ratioW, ratioH);
-            newW = start.width * ratio;
-            newH = start.height * ratio;
-            if (aspect) {
-              if (newW / newH > aspect) {
-                newW = newH * aspect;
-              } else {
-                newH = newW / aspect;
-              }
-            }
-          }
-          nc.x = start.x + start.width - newW;
-          nc.width = newW;
-          nc.height = newH;
-          break;
-        }
-
-        case 'se': {
-          let newW = Math.max(20, Math.min(imgW - start.x, start.width + dx));
-          let newH = Math.max(20, Math.min(imgH - start.y, start.height + dy));
-          if (aspect) {
-            const ratioW = newW / start.width;
-            const ratioH = newH / start.height;
-            const ratio = Math.min(ratioW, ratioH);
-            newW = start.width * ratio;
-            newH = start.height * ratio;
-            if (aspect) {
-              if (newW / newH > aspect) {
-                newW = newH * aspect;
-              } else {
-                newH = newW / aspect;
-              }
-            }
-          }
-          nc.width = newW;
-          nc.height = newH;
-          break;
-        }
-      }
-
-      // 全局边界约束
-      nc.x = Math.max(0, Math.min(imgW - nc.width, nc.x));
-      nc.y = Math.max(0, Math.min(imgH - nc.height, nc.y));
-      nc.width = Math.max(20, Math.min(imgW - nc.x, nc.width));
-      nc.height = Math.max(20, Math.min(imgH - nc.y, nc.height));
-
-      return nc;
-    };
-
-    const handleGlobalMouseMove = (e: MouseEvent) => {
+    const handleMouseMove = (e: MouseEvent) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
       const ds = dragStateRef.current;
-      if (!ds.dragType || !ds.cropStart || !ds.image) return;
-
-      const rect = imageWrapperRef.current?.getBoundingClientRect();
-      if (!rect) return;
-
-      const currentPos = {
-        x: (e.clientX - rect.left) / ds.scale,
-        y: (e.clientY - rect.top) / ds.scale,
-      };
-
-      const newCrop = computeNewCrop(
-        ds.dragType,
-        ds.cropStart,
-        ds.dragStart,
-        currentPos,
-        ds.image.width,
-        ds.image.height,
-        ds.aspectRatio
-      );
-
-      setCropArea(newCrop);
+      setTransform((prev) => ({
+        ...prev,
+        x: ds.startTransformX + (mouseX - ds.startMouseX),
+        y: ds.startTransformY + (mouseY - ds.startMouseY),
+      }));
     };
 
-    const handleGlobalMouseUp = () => {
+    const handleMouseUp = () => {
       setIsDragging(false);
-      setDragType(null);
-      setCropStart(null);
+      dragStateRef.current.isDragging = false;
     };
 
-    window.addEventListener('mousemove', handleGlobalMouseMove);
-    window.addEventListener('mouseup', handleGlobalMouseUp);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
     return () => {
-      window.removeEventListener('mousemove', handleGlobalMouseMove);
-      window.removeEventListener('mouseup', handleGlobalMouseUp);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
     };
   }, [isDragging]);
 
-  const handleUndo = useCallback(() => {
-    if (!canUndo || historyIndex < 0) return;
-    const newIndex = historyIndex - 1;
-    if (newIndex >= 0) {
-      setCropArea(cropHistory[newIndex]);
-    } else {
-      const cropWidth = aspectRatio
-        ? Math.min(image!.width, image!.height * aspectRatio)
-        : image!.width * 0.8;
-      const cropHeight = aspectRatio
-        ? cropWidth / aspectRatio
-        : image!.height * 0.8;
-      setCropArea({
-        x: (image!.width - cropWidth) / 2,
-        y: (image!.height - cropHeight) / 2,
-        width: cropWidth,
-        height: cropHeight,
+  // ============================================================
+  // 触摸拖拽（移动端单指拖动）
+  // ============================================================
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      e.preventDefault();
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const touch = e.touches[0];
+      const mouseX = touch.clientX - rect.left;
+      const mouseY = touch.clientY - rect.top;
+      const ds = dragStateRef.current;
+      setTransform((prev) => ({
+        ...prev,
+        x: ds.startTransformX + (mouseX - ds.startMouseX),
+        y: ds.startTransformY + (mouseY - ds.startMouseY),
+      }));
+    };
+
+    const handleTouchEnd = () => {
+      setIsDragging(false);
+      dragStateRef.current.isDragging = false;
+    };
+
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleTouchEnd);
+    return () => {
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isDragging]);
+
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const touch = e.touches[0];
+      dragStateRef.current = {
+        isDragging: true,
+        startMouseX: touch.clientX - rect.left,
+        startMouseY: touch.clientY - rect.top,
+        startTransformX: transform.x,
+        startTransformY: transform.y,
+      };
+      setIsDragging(true);
+    },
+    [transform]
+  );
+
+  // ============================================================
+  // 滚轮缩放（以鼠标位置为中心）—— 使用原生事件以支持 preventDefault
+  // ============================================================
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !image) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      setTransform((prev) => {
+        const zoomRatio = e.deltaY > 0 ? 0.9 : 1.1;
+        const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, prev.scale * zoomRatio));
+        if (newScale === prev.scale) return prev;
+        const ratio = newScale / prev.scale;
+        return {
+          x: mouseX - (mouseX - prev.x) * ratio,
+          y: mouseY - (mouseY - prev.y) * ratio,
+          scale: newScale,
+        };
       });
-    }
-    onConfirm(cropArea, cropHistory, newIndex);
-  }, [canUndo, historyIndex, cropHistory, aspectRatio, image, cropArea, onConfirm]);
+    };
 
-  const handleRedo = useCallback(() => {
-    if (!canRedo || historyIndex >= cropHistory.length - 1) return;
-    const newIndex = historyIndex + 1;
-    setCropArea(cropHistory[newIndex]);
-    onConfirm(cropArea, cropHistory, newIndex);
-  }, [canRedo, historyIndex, cropHistory, cropArea, onConfirm]);
+    canvas.addEventListener('wheel', handleWheel, { passive: false });
+    return () => canvas.removeEventListener('wheel', handleWheel);
+  }, [image]);
 
+  // ============================================================
+  // 按钮缩放（以画布中心为基准）
+  // ============================================================
+  const zoomByButton = useCallback(
+    (factor: number) => {
+      const cx = canvasWidth / 2;
+      const cy = canvasHeight / 2;
+      setTransform((prev) => {
+        const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, prev.scale * factor));
+        if (newScale === prev.scale) return prev;
+        const ratio = newScale / prev.scale;
+        return {
+          x: cx - (cx - prev.x) * ratio,
+          y: cy - (cy - prev.y) * ratio,
+          scale: newScale,
+        };
+      });
+    },
+    [canvasWidth, canvasHeight]
+  );
+
+  const handleZoomIn = useCallback(() => zoomByButton(1.2), [zoomByButton]);
+  const handleZoomOut = useCallback(() => zoomByButton(1 / 1.2), [zoomByButton]);
+
+  // ============================================================
+  // 重置变换
+  // ============================================================
   const handleReset = useCallback(() => {
     if (!image) return;
-    const cropWidth = aspectRatio
-      ? Math.min(image.width, image.height * aspectRatio)
-      : image.width * 0.8;
-    const cropHeight = aspectRatio
-      ? cropWidth / aspectRatio
-      : image.height * 0.8;
-    const defaultParams: CropParams = {
-      x: (image.width - cropWidth) / 2,
-      y: (image.height - cropHeight) / 2,
-      width: cropWidth,
-      height: cropHeight,
-    };
-    setCropArea(defaultParams);
-    onConfirm(defaultParams, [], -1);
-  }, [image, aspectRatio, onConfirm]);
+    setTransform(
+      computeDefaultTransform(image.width, image.height, canvasWidth, canvasHeight)
+    );
+  }, [image, canvasWidth, canvasHeight]);
 
+  // ============================================================
+  // 确认裁剪 —— 导出透明背景 PNG
+  // ============================================================
   const handleConfirm = useCallback(() => {
     if (!image) return;
-    const newHistory = cropHistory.slice(0, historyIndex + 1);
-    newHistory.push({ ...cropArea });
-    onConfirm(cropArea, newHistory, newHistory.length - 1);
+
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = Math.round(canvasWidth * dpr);
+    exportCanvas.height = Math.round(canvasHeight * dpr);
+    const exportCtx = exportCanvas.getContext('2d');
+    if (!exportCtx) return;
+
+    // 导出时不绘制遮罩和边框
+    drawShapedImage(
+      exportCtx,
+      image,
+      transform,
+      canvasWidth,
+      canvasHeight,
+      dpr,
+      unitPath,
+      false // drawOverlay = false
+    );
+
+    const resultUrl = exportCanvas.toDataURL('image/png');
+
+    const newHistory = transformHistory.slice(0, historyIndex + 1);
+    newHistory.push({ ...transform });
+    onConfirm(resultUrl, transform, newHistory, newHistory.length - 1);
     onClose();
-  }, [image, cropArea, cropHistory, historyIndex, onConfirm, onClose]);
+  }, [
+    image,
+    transform,
+    canvasWidth,
+    canvasHeight,
+    dpr,
+    unitPath,
+    transformHistory,
+    historyIndex,
+    onConfirm,
+    onClose,
+  ]);
 
   if (!isOpen || !image) return null;
 
-  const imageStyle = {
-    width: image.width * scale,
-    height: image.height * scale,
-  };
-
-  const cropStyle = {
-    left: cropArea.x * scale,
-    top: cropArea.y * scale,
-    width: cropArea.width * scale,
-    height: cropArea.height * scale,
-  };
-
-  const shapePathValue = renderShapePath(cell.shapePath, cell.shapeType);
-
-  // 手柄通用样式
-  const handleBaseClass = 'absolute w-3 h-3 bg-white rounded-full border-2 border-gray-400 shadow-sm';
-
   return (
-    <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-[860px] max-w-[95vw] max-h-[88vh] flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/70 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-[640px] max-w-[95vw] max-h-[90vh] flex flex-col overflow-hidden">
+        {/* ===== 标题栏 ===== */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 shrink-0">
-          <h2 className="text-lg font-semibold text-gray-800">子图裁剪</h2>
+          <h2 className="text-lg font-semibold text-gray-800">裁剪图片</h2>
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
@@ -594,220 +508,51 @@ export default function PuzzleCellCropperModal({ isOpen, onClose, cell, onConfir
           </button>
         </div>
 
-        <div className="px-5 py-2.5 border-b border-gray-100 flex items-center justify-between shrink-0">
-          <div className="flex gap-2">
+        {/* ===== 画布区域 ===== */}
+        <div className="flex-1 flex items-center justify-center bg-gray-900 p-6 min-h-0 overflow-hidden">
+          <canvas
+            ref={canvasRef}
+            className="cursor-move rounded-lg shadow-lg touch-none select-none"
+            onMouseDown={handleMouseDown}
+            onTouchStart={handleTouchStart}
+          />
+        </div>
+
+        {/* ===== 工具栏 ===== */}
+        <div className="px-5 py-2.5 border-t border-gray-100 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleZoomOut}
+              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
+              title="缩小"
+            >
+              <ZoomOut className="w-4 h-4" />
+            </button>
+            <span className="text-xs text-gray-500 min-w-[3rem] text-center tabular-nums">
+              {Math.round(transform.scale * 100)}%
+            </span>
+            <button
+              onClick={handleZoomIn}
+              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
+              title="放大"
+            >
+              <ZoomIn className="w-4 h-4" />
+            </button>
             <button
               onClick={handleReset}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors ml-2"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               重置
             </button>
-            <button
-              onClick={handleUndo}
-              disabled={!canUndo}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                canUndo
-                  ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  : 'bg-gray-50 text-gray-300 cursor-not-allowed'
-              }`}
-            >
-              <Undo2 className="w-3.5 h-3.5" />
-              撤销
-            </button>
-            <button
-              onClick={handleRedo}
-              disabled={!canRedo}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                canRedo
-                  ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  : 'bg-gray-50 text-gray-300 cursor-not-allowed'
-              }`}
-            >
-              <Redo2 className="w-3.5 h-3.5" />
-              重做
-            </button>
           </div>
-          <span className="text-xs text-gray-400">
-            {Math.round(cropArea.width)} × {Math.round(cropArea.height)}
-            {aspectRatio && <span className="ml-2">| {cell.width}:{cell.height}</span>}
-          </span>
-        </div>
-
-        <div className="flex-1 flex min-h-0">
-          <div className="relative bg-gray-900 flex-1 min-h-[200px]">
-            <div
-              ref={containerRef}
-              className="relative w-full h-full flex items-center justify-center overflow-hidden"
-              onMouseDown={handleMouseDown}
-            >
-              {/* 图片包裹层 —— getMousePosition 基于此元素计算坐标，消除居中偏移 */}
-              <div
-                ref={imageWrapperRef}
-                className="relative"
-                style={{
-                  width: image.width * scale,
-                  height: image.height * scale,
-                }}
-              >
-                <img
-                  src={image.src}
-                  alt="crop"
-                  style={imageStyle}
-                  className="pointer-events-none"
-                  draggable={false}
-                />
-
-                {/* 四向遮罩 */}
-                <div className="absolute top-0 left-0 right-0 bg-black/50 pointer-events-none" style={{ height: cropArea.y * scale }} />
-                <div className="absolute bottom-0 left-0 right-0 bg-black/50 pointer-events-none" style={{ height: (image.height - cropArea.y - cropArea.height) * scale }} />
-                <div className="absolute top-0 bottom-0 left-0 bg-black/50 pointer-events-none" style={{ width: cropArea.x * scale }} />
-                <div className="absolute top-0 bottom-0 right-0 bg-black/50 pointer-events-none" style={{ width: (image.width - cropArea.x - cropArea.width) * scale }} />
-
-                {/* 裁剪区域 */}
-                <div
-                  className="absolute bg-transparent border-2 border-white pointer-events-auto cursor-move"
-                  style={cropStyle}
-                  onMouseDown={(e) => {
-                    e.stopPropagation();
-                    handleMouseDown(e);
-                  }}
-                >
-                  {/* 形状轮廓指引 */}
-                  {shapePathValue && (
-                    <svg className="absolute inset-0 w-full h-full pointer-events-none">
-                      {shapePathValue.startsWith('circle(') ? (
-                        <circle
-                          cx="50%"
-                          cy="50%"
-                          r="50%"
-                          fill="none"
-                          stroke="#00ffff"
-                          strokeWidth="2"
-                          strokeOpacity="0.7"
-                          className="drop-shadow-lg"
-                        />
-                      ) : shapePathValue.startsWith('ellipse(') ? (
-                        <ellipse
-                          cx="50%"
-                          cy="50%"
-                          rx="50%"
-                          ry="50%"
-                          fill="none"
-                          stroke="#00ffff"
-                          strokeWidth="2"
-                          strokeOpacity="0.7"
-                          className="drop-shadow-lg"
-                        />
-                      ) : shapePathValue.startsWith('polygon(') ? (
-                        <polygon
-                          points={shapePathValue.replace('polygon(', '').replace(')', '')}
-                          fill="none"
-                          stroke="#00ffff"
-                          strokeWidth="2"
-                          strokeOpacity="0.7"
-                          className="drop-shadow-lg"
-                        />
-                      ) : (
-                        <path
-                          d={getShapeSvgPath(cell.shapePath, cell.shapeType) || shapePathValue.replace(/^path\(["']/, '').replace(/["']\)$/, '')}
-                          fill="none"
-                          stroke="#00ffff"
-                          strokeWidth="2"
-                          strokeOpacity="0.7"
-                          className="drop-shadow-lg"
-                        />
-                      )}
-                    </svg>
-                  )}
-
-                  {/* 四角手柄 —— 每个手柄绑定明确的 onMouseDown 拖拽类型 */}
-                  <div
-                    className={`${handleBaseClass} cursor-nw-resize`}
-                    style={{ top: '-6px', left: '-6px' }}
-                    onMouseDown={(e) => handleHandleMouseDown(e, 'nw')}
-                  />
-                  <div
-                    className={`${handleBaseClass} cursor-ne-resize`}
-                    style={{ top: '-6px', right: '-6px' }}
-                    onMouseDown={(e) => handleHandleMouseDown(e, 'ne')}
-                  />
-                  <div
-                    className={`${handleBaseClass} cursor-sw-resize`}
-                    style={{ bottom: '-6px', left: '-6px' }}
-                    onMouseDown={(e) => handleHandleMouseDown(e, 'sw')}
-                  />
-                  <div
-                    className={`${handleBaseClass} cursor-se-resize`}
-                    style={{ bottom: '-6px', right: '-6px' }}
-                    onMouseDown={(e) => handleHandleMouseDown(e, 'se')}
-                  />
-
-                  {/* 四边中点手柄 */}
-                  <div
-                    className={`${handleBaseClass} cursor-n-resize`}
-                    style={{ top: '-6px', left: '50%', transform: 'translateX(-50%)' }}
-                    onMouseDown={(e) => handleHandleMouseDown(e, 'n')}
-                  />
-                  <div
-                    className={`${handleBaseClass} cursor-s-resize`}
-                    style={{ bottom: '-6px', left: '50%', transform: 'translateX(-50%)' }}
-                    onMouseDown={(e) => handleHandleMouseDown(e, 's')}
-                  />
-                  <div
-                    className={`${handleBaseClass} cursor-w-resize`}
-                    style={{ left: '-6px', top: '50%', transform: 'translateY(-50%)' }}
-                    onMouseDown={(e) => handleHandleMouseDown(e, 'w')}
-                  />
-                  <div
-                    className={`${handleBaseClass} cursor-e-resize`}
-                    style={{ right: '-6px', top: '50%', transform: 'translateY(-50%)' }}
-                    onMouseDown={(e) => handleHandleMouseDown(e, 'e')}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="w-48 bg-gray-50 border-l border-gray-100 flex flex-col min-h-0">
-            <div className="px-3 py-2 border-b border-gray-100 shrink-0">
-              <span className="text-xs text-gray-500">裁剪预览</span>
-            </div>
-            <div className="flex-1 flex items-center justify-center p-3 min-h-0 overflow-hidden">
-              {previewUrl && (
-                <div className="relative">
-                  <img
-                    src={previewUrl}
-                    alt="preview"
-                    className="max-w-full max-h-[160px] object-contain rounded-lg shadow-md"
-                    style={{
-                      clipPath: shapePathValue || undefined,
-                    }}
-                  />
-                  {shapePathValue && (
-                    <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ clipPath: shapePathValue }}>
-                      <path
-                        d={shapePathValue.replace(/%/g, (_, i) => '%')}
-                        fill="none"
-                        stroke="#00ffff"
-                        strokeWidth="1"
-                        strokeOpacity="0.7"
-                      />
-                    </svg>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="px-3 py-2 border-t border-gray-100 shrink-0">
-              <div className="text-xs text-gray-400 space-y-0.5">
-                <div>原图: {image.width} × {image.height}</div>
-                <div>裁剪: {Math.round(cropArea.x)}, {Math.round(cropArea.y)}</div>
-                <div>尺寸: {Math.round(cropArea.width)} × {Math.round(cropArea.height)}</div>
-              </div>
-            </div>
+          <div className="flex items-center gap-1.5 text-xs text-gray-400">
+            <Move className="w-3.5 h-3.5" />
+            <span>拖拽移动 · 滚轮缩放</span>
           </div>
         </div>
 
+        {/* ===== 底部按钮 ===== */}
         <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-end gap-3 shrink-0">
           <button
             onClick={onClose}
@@ -819,7 +564,7 @@ export default function PuzzleCellCropperModal({ isOpen, onClose, cell, onConfir
             onClick={handleConfirm}
             className="px-5 py-2 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors"
           >
-            确定
+            确认
           </button>
         </div>
       </div>

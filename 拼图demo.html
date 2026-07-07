@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>心形拼图裁剪 Demo</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background-color: #f5f7fa;
+      font-family: system-ui, -apple-system, sans-serif;
+      gap: 30px;
+    }
+
+    h2 {
+      color: #333;
+      font-weight: 500;
+    }
+
+    /* 拼图容器 */
+    .puzzle-container {
+      display: flex;
+      position: relative;
+    }
+
+    /* 拼图分片通用样式 */
+    .piece {
+      width: 200px;
+      height: 360px;
+      background-color: #e2e6ed;
+      cursor: pointer;
+      position: relative;
+      transition: background-color 0.2s;
+      background-repeat: no-repeat;
+    }
+
+    .piece:hover {
+      background-color: #d0d7e2;
+    }
+
+    /* 左半心形状 */
+    #left-heart {
+      clip-path: path('M200 40 C130 -10, 0 60, 0 160 C0 260, 200 340, 200 360 Z');
+    }
+
+    /* 右半心形状 */
+    #right-heart {
+      clip-path: path('M0 40 C70 -10, 200 60, 200 160 C200 260, 0 340, 0 360 Z');
+    }
+
+    /* 操作菜单 */
+    .action-menu {
+      position: absolute;
+      display: none;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 100;
+      min-width: 130px;
+      overflow: hidden;
+    }
+
+    .action-menu button {
+      width: 100%;
+      padding: 10px 16px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      text-align: left;
+      font-size: 14px;
+      color: #333;
+    }
+
+    .action-menu button:hover {
+      background-color: #f0f2f5;
+    }
+
+    /* 裁剪弹窗 */
+    .crop-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.7);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 200;
+    }
+
+    .modal-content {
+      background: #fff;
+      border-radius: 10px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    #cropCanvas {
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      cursor: move;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+
+    .btn {
+      padding: 8px 22px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: opacity 0.2s;
+    }
+
+    .btn:hover {
+      opacity: 0.9;
+    }
+
+    .btn-default {
+      background-color: #f0f2f5;
+      color: #333;
+    }
+
+    .btn-primary {
+      background-color: #4080ff;
+      color: #fff;
+    }
+
+    /* 隐藏的文件上传输入 */
+    #fileInput {
+      display: none;
+    }
+
+    .tip {
+      color: #999;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <h2>心形拼图裁剪演示</h2>
+  <div class="puzzle-container">
+    <div class="piece" id="left-heart"></div>
+    <div class="piece" id="right-heart"></div>
+  </div>
+  <p class="tip">点击任意半颗心，可上传图片并按形状裁剪</p>
+
+  <!-- 分片操作菜单 -->
+  <div class="action-menu" id="actionMenu">
+    <button id="btnUpload">上传图片</button>
+    <button id="btnCrop">裁剪图片</button>
+  </div>
+
+  <!-- 裁剪弹窗 -->
+  <div class="crop-modal" id="cropModal">
+    <div class="modal-content">
+      <canvas id="cropCanvas"></canvas>
+      <div class="modal-footer">
+        <button class="btn btn-default" id="btnCancel">取消</button>
+        <button class="btn btn-primary" id="btnConfirm">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <input type="file" id="fileInput" accept="image/*">
+
+  <script>
+    // ========== 1. 拼图形状配置（一份路径多处复用） ==========
+    const puzzlePieces = {
+      'left-heart': {
+        path: 'M200 40 C130 -10, 0 60, 0 160 C0 260, 200 340, 200 360 Z',
+        width: 200,
+        height: 360
+      },
+      'right-heart': {
+        path: 'M0 40 C70 -10, 200 60, 200 160 C200 260, 0 340, 0 360 Z',
+        width: 200,
+        height: 360
+      }
+    };
+
+    // ========== 2. 分片状态管理 ==========
+    const piecesState = {
+      'left-heart': {
+        originalImage: null,    // 原图 Image 对象
+        transform: { x: 0, y: 0, scale: 1 }, // 裁剪变换参数
+        croppedImage: null      // 裁剪结果 base64
+      },
+      'right-heart': {
+        originalImage: null,
+        transform: { x: 0, y: 0, scale: 1 },
+        croppedImage: null
+      }
+    };
+
+    // ========== 3. DOM 元素获取 ==========
+    const pieceEls = document.querySelectorAll('.piece');
+    const actionMenu = document.getElementById('actionMenu');
+    const btnUpload = document.getElementById('btnUpload');
+    const btnCrop = document.getElementById('btnCrop');
+    const fileInput = document.getElementById('fileInput');
+    const cropModal = document.getElementById('cropModal');
+    const cropCanvas = document.getElementById('cropCanvas');
+    const btnConfirm = document.getElementById('btnConfirm');
+    const btnCancel = document.getElementById('btnCancel');
+    const ctx = cropCanvas.getContext('2d');
+
+    // 全局变量
+    let activePieceId = null;  // 当前操作的分片ID
+    let isDragging = false;    // 是否正在拖拽
+    let dragStart = {};        // 拖拽起始信息
+    let tempTransform = {};    // 裁剪弹窗临时变换参数
+    const dpr = window.devicePixelRatio || 1; // 设备像素比，解决高清屏模糊
+
+    // ========== 4. 分片点击与操作菜单 ==========
+    pieceEls.forEach(piece => {
+      piece.addEventListener('click', (e) => {
+        e.stopPropagation();
+        activePieceId = piece.id;
+        // 定位菜单到分片下方居中
+        const rect = piece.getBoundingClientRect();
+        actionMenu.style.left = `${rect.left + rect.width / 2 - 65}px`;
+        actionMenu.style.top = `${rect.bottom + 8}px`;
+        actionMenu.style.display = 'block';
+      });
+    });
+
+    // 点击页面其他区域关闭菜单
+    document.addEventListener('click', () => {
+      actionMenu.style.display = 'none';
+    });
+    actionMenu.addEventListener('click', e => e.stopPropagation());
+
+    // ========== 5. 图片上传逻辑 ==========
+    btnUpload.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file || !activePieceId) return;
+
+      const img = new Image();
+      img.onload = () => {
+        const state = piecesState[activePieceId];
+        const piece = puzzlePieces[activePieceId];
+        state.originalImage = img;
+
+        // 计算初始变换：图片居中覆盖裁剪区域
+        const scale = Math.max(piece.width / img.width, piece.height / img.height);
+        const x = (piece.width - img.width * scale) / 2;
+        const y = (piece.height - img.height * scale) / 2;
+        state.transform = { x, y, scale };
+        state.croppedImage = null;
+
+        // 更新分片预览（通过背景图+clip-path实现形状显示）
+        const pieceEl = document.getElementById(activePieceId);
+        pieceEl.style.backgroundImage = `url(${img.src})`;
+        pieceEl.style.backgroundSize = `${img.width * scale}px ${img.height * scale}px`;
+        pieceEl.style.backgroundPosition = `${x}px ${y}px`;
+
+        actionMenu.style.display = 'none';
+      };
+      img.src = URL.createObjectURL(file);
+      fileInput.value = ''; // 重置，允许重复选择同一文件
+    });
+
+    // ========== 6. 裁剪弹窗逻辑 ==========
+    btnCrop.addEventListener('click', () => {
+      if (!activePieceId) return;
+      if (!piecesState[activePieceId].originalImage) {
+        alert('请先上传图片');
+        return;
+      }
+      actionMenu.style.display = 'none';
+      openCropModal();
+    });
+
+    // 打开裁剪弹窗
+    function openCropModal() {
+      const piece = puzzlePieces[activePieceId];
+      const state = piecesState[activePieceId];
+
+      // 初始化Canvas尺寸（适配高清屏）
+      cropCanvas.style.width = `${piece.width}px`;
+      cropCanvas.style.height = `${piece.height}px`;
+      cropCanvas.width = piece.width * dpr;
+      cropCanvas.height = piece.height * dpr;
+
+      // 复制当前变换参数到临时变量
+      tempTransform = { ...state.transform };
+
+      cropModal.style.display = 'flex';
+      drawCropCanvas();
+    }
+
+    // 绘制裁剪预览画布
+    function drawCropCanvas() {
+      const piece = puzzlePieces[activePieceId];
+      const img = piecesState[activePieceId].originalImage;
+
+      ctx.clearRect(0, 0, cropCanvas.width, cropCanvas.height);
+      ctx.save();
+      ctx.scale(dpr, dpr); // 适配高清屏，坐标仍使用CSS像素
+
+      // 1. 绘制半透明黑色遮罩
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillRect(0, 0, piece.width, piece.height);
+
+      // 2. 创建形状裁剪路径
+      const clipPath = new Path2D(piece.path);
+
+      // 3. 裁剪区域内绘制变换后的原图
+      ctx.save();
+      ctx.clip(clipPath);
+      ctx.translate(tempTransform.x, tempTransform.y);
+      ctx.scale(tempTransform.scale, tempTransform.scale);
+      ctx.drawImage(img, 0, 0);
+      ctx.restore();
+
+      // 4. 绘制形状白色边框，增强视觉引导
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.stroke(clipPath);
+
+      ctx.restore();
+    }
+
+    // ========== 7. 拖拽交互 ==========
+    cropCanvas.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      const rect = cropCanvas.getBoundingClientRect();
+      dragStart.mouseX = e.clientX - rect.left;
+      dragStart.mouseY = e.clientY - rect.top;
+      dragStart.transformX = tempTransform.x;
+      dragStart.transformY = tempTransform.y;
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const rect = cropCanvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      tempTransform.x = dragStart.transformX + (mouseX - dragStart.mouseX);
+      tempTransform.y = dragStart.transformY + (mouseY - dragStart.mouseY);
+      drawCropCanvas();
+    });
+
+    document.addEventListener('mouseup', () => {
+      isDragging = false;
+    });
+
+    // ========== 8. 滚轮缩放（以鼠标位置为中心） ==========
+    cropCanvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const rect = cropCanvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      const zoomRatio = e.deltaY > 0 ? 0.9 : 1.1;
+      const newScale = Math.max(0.2, Math.min(5, tempTransform.scale * zoomRatio));
+
+      // 修正偏移，保证鼠标指向的点位置不变
+      tempTransform.x = mouseX - (mouseX - tempTransform.x) * (newScale / tempTransform.scale);
+      tempTransform.y = mouseY - (mouseY - tempTransform.y) * (newScale / tempTransform.scale);
+      tempTransform.scale = newScale;
+
+      drawCropCanvas();
+    }, { passive: false });
+
+    // ========== 9. 确认裁剪与导出 ==========
+    btnConfirm.addEventListener('click', () => {
+      const piece = puzzlePieces[activePieceId];
+      const state = piecesState[activePieceId];
+      const img = state.originalImage;
+
+      // 创建离屏Canvas导出高清结果图
+      const exportCanvas = document.createElement('canvas');
+      exportCanvas.width = piece.width * dpr;
+      exportCanvas.height = piece.height * dpr;
+      const exportCtx = exportCanvas.getContext('2d');
+
+      exportCtx.scale(dpr, dpr);
+
+      // 执行与预览完全一致的裁剪+绘制逻辑
+      const clipPath = new Path2D(piece.path);
+      exportCtx.save();
+      exportCtx.clip(clipPath);
+      exportCtx.translate(tempTransform.x, tempTransform.y);
+      exportCtx.scale(tempTransform.scale, tempTransform.scale);
+      exportCtx.drawImage(img, 0, 0);
+      exportCtx.restore();
+
+      // 导出透明背景PNG
+      const resultUrl = exportCanvas.toDataURL('image/png');
+      state.croppedImage = resultUrl;
+      state.transform = { ...tempTransform };
+
+      // 更新分片显示
+      const pieceEl = document.getElementById(activePieceId);
+      pieceEl.style.backgroundImage = `url(${resultUrl})`;
+      pieceEl.style.backgroundSize = 'cover';
+      pieceEl.style.backgroundPosition = 'center';
+
+      closeCropModal();
+    });
+
+    // ========== 10. 关闭弹窗 ==========
+    btnCancel.addEventListener('click', closeCropModal);
+    cropModal.addEventListener('click', (e) => {
+      if (e.target === cropModal) closeCropModal();
+    });
+
+    function closeCropModal() {
+      cropModal.style.display = 'none';
+      isDragging = false;
+    }
+  </script>
+</body>
+</html>

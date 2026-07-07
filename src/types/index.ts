@@ -18,6 +18,13 @@ export interface CropParams {
   height: number;
 }
 
+/** 图片变换参数 —— 用于拼图形状裁剪（固定形状，移动/缩放底图） */
+export interface ImageTransform {
+  x: number;       // 图片左上角在画布坐标系中的 X 偏移
+  y: number;       // 图片左上角在画布坐标系中的 Y 偏移
+  scale: number;   // 图片缩放比例
+}
+
 export interface PuzzleCell {
   x: number;
   y: number;
@@ -25,9 +32,14 @@ export interface PuzzleCell {
   height: number;
   imageUrl?: string;
   originalImageUrl?: string;
+  // 旧的矩形裁剪参数（向后兼容，新裁剪器不再使用）
   cropParams?: CropParams;
   cropHistory?: CropParams[];
   historyIndex?: number;
+  // 新的形状裁剪变换参数
+  transform?: ImageTransform;
+  transformHistory?: ImageTransform[];
+  transformHistoryIndex?: number;
   borderWidth?: number;
   borderColor?: string;
   opacity?: number;

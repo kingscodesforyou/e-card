@@ -3,18 +3,51 @@
  * 在 Canvas 和 Preview 中复用
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { CardElement, ComponentConfig } from '../../types';
-import { Heart, Eye, MapPin, Volume2, ChevronRight, PenTool, Play, Pause, RotateCcw, User, MessageSquare, FolderOpen, Menu, Image as ImageIcon } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import type { CardElement, ComponentConfig, ImageTransform } from '../../types';
+import { Heart, Eye, MapPin, Volume2, ChevronRight, PenTool, Play, Pause, RotateCcw, User, MessageSquare, FolderOpen, Menu, Image as ImageIcon, Crop } from 'lucide-react';
 import { parseClipPath, convertPercentToUnit } from '../../lib/clipPathUtils';
+import { useEditorStore } from '../../store';
+import PuzzleCellCropperModal from './PuzzleCellCropperModal';
 
 // ============================================================
 // 拼图组件
 // ============================================================
-export function PuzzleRenderer({ element }: { element: CardElement }) {
+// 每个实例独立的 clipPath id 前缀，避免多实例冲突
+let _puzzleClipSeq = 0;
+
+export function PuzzleRenderer({ element, editable = false }: { element: CardElement; editable?: boolean }) {
   const config = element.componentConfig;
   const cells = config?.puzzleCells || [];
   const layout = config?.puzzleLayout || {};
   const gap = layout.gap || 0;
+
+  // ---- 编辑模式状态 ----
+  const { updateElement } = useEditorStore();
+  const [activeCellIdx, setActiveCellIdx] = useState<number | null>(null);
+  const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
+  const [croppingIdx, setCroppingIdx] = useState<number | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  // 每个实例独立的 clip id 前缀
+  const clipPrefix = useRef(`pz-${++_puzzleClipSeq}`).current;
+
+  // 点击菜单外部时关闭菜单
+  useEffect(() => {
+    if (activeCellIdx === null) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setActiveCellIdx(null);
+      }
+    };
+    // 延迟绑定，避免触发菜单打开的那次 click 事件立即关闭
+    const timer = setTimeout(() => {
+      document.addEventListener('click', handleOutsideClick);
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('click', handleOutsideClick);
+    };
+  }, [activeCellIdx]);
 
   const getAnimationClass = (animation?: string) => {
     switch (animation) {
@@ -32,7 +65,7 @@ export function PuzzleRenderer({ element }: { element: CardElement }) {
     if (info.useSvgClipPath && info.svgPathData) {
       return {
         ...info,
-        clipPathValue: `url(#puzzle-clip-${idx})`,
+        clipPathValue: `url(#${clipPrefix}-clip-${idx})`,
       };
     }
     return info;
@@ -45,77 +78,213 @@ export function PuzzleRenderer({ element }: { element: CardElement }) {
     return '0px';
   };
 
+  // ---- 更新单个 cell（复用与 PuzzlePropertyEditor 相同的逻辑） ----
+  const updateCell = (index: number, updates: Partial<typeof cells[0]>) => {
+    const newCells = [...cells];
+    newCells[index] = { ...newCells[index], ...updates };
+    updateElement(element.id, {
+      componentConfig: { ...config, puzzleCells: newCells } as ComponentConfig,
+    });
+  };
+
+  // ---- 点击子图：弹出操作菜单 ----
+  const handleCellClick = (e: React.MouseEvent, idx: number) => {
+    if (!editable) return;
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setActiveCellIdx(idx);
+    setMenuPos({
+      x: rect.left + rect.width / 2,
+      y: rect.bottom + 8,
+    });
+  };
+
+  // 阻止 mousedown 冒泡到父元素，防止触发画布拖拽
+  const handleCellMouseDown = (e: React.MouseEvent) => {
+    if (!editable) return;
+    e.stopPropagation();
+  };
+
+  // ---- 选择图片（复用 PuzzlePropertyEditor.handleImageUpload 逻辑） ----
+  const handleSelectImage = () => {
+    const idx = activeCellIdx;
+    setActiveCellIdx(null);
+    if (idx === null) return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async () => {
+      const files = input.files;
+      if (!files || files.length === 0) return;
+      const url = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.readAsDataURL(files[0]);
+      });
+      updateCell(idx, {
+        imageUrl: url,
+        originalImageUrl: url,
+        cropParams: undefined,
+        cropHistory: undefined,
+        historyIndex: undefined,
+        transform: undefined,
+        transformHistory: undefined,
+        transformHistoryIndex: undefined,
+      });
+    };
+    input.click();
+  };
+
+  // ---- 裁切图片（复用 PuzzleCellCropperModal） ----
+  const handleCropImage = () => {
+    const idx = activeCellIdx;
+    if (idx === null) return;
+    if (!cells[idx]?.originalImageUrl) return;
+    setCroppingIdx(idx);
+    setActiveCellIdx(null);
+  };
+
+  // ---- 确认裁切 ----
+  const handleCropConfirm = (
+    croppedImageUrl: string,
+    transform: ImageTransform,
+    transformHistory: ImageTransform[],
+    transformHistoryIndex: number
+  ) => {
+    if (croppingIdx === null) return;
+    updateCell(croppingIdx, {
+      imageUrl: croppedImageUrl,
+      transform,
+      transformHistory,
+      transformHistoryIndex,
+    });
+  };
+
   return (
-    <div
-      style={{
-        width: '100%',
-        height: '100%',
-        position: 'relative',
-        borderRadius: `${element.style?.borderRadius || 8}px`,
-        overflow: 'hidden',
-        padding: `${gap}px`,
-      }}
-    >
-      <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ width: '0', height: '0' }}>
+    <>
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          position: 'relative',
+          borderRadius: `${element.style?.borderRadius || 8}px`,
+          overflow: 'hidden',
+          padding: `${gap}px`,
+        }}
+      >
+        <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ width: '0', height: '0' }}>
+          {cells.map((cell, idx) => {
+            const info = getClipPathInfo(cell, idx);
+            if (info.useSvgClipPath && info.svgPathData) {
+              return (
+                <clipPath key={`clip-${idx}`} id={`${clipPrefix}-clip-${idx}`} clipPathUnits="objectBoundingBox">
+                  <path d={convertPercentToUnit(info.svgPathData)} />
+                </clipPath>
+              );
+            }
+            return null;
+          })}
+        </svg>
         {cells.map((cell, idx) => {
           const info = getClipPathInfo(cell, idx);
-          if (info.useSvgClipPath && info.svgPathData) {
-            return (
-              <clipPath key={`clip-${idx}`} id={`puzzle-clip-${idx}`} clipPathUnits="objectBoundingBox">
-                <path d={convertPercentToUnit(info.svgPathData)} />
-              </clipPath>
-            );
-          }
-          return null;
+          const clipPath = info.clipPathValue || undefined;
+          return (
+            <div
+              key={idx}
+              className={`absolute ${getAnimationClass(cell.animation)} ${editable ? 'cursor-pointer' : ''}`}
+              style={{
+                left: `${cell.x}%`,
+                top: `${cell.y}%`,
+                width: `${cell.width}%`,
+                height: `${cell.height}%`,
+                borderRadius: getBorderRadius(cell),
+                overflow: clipPath ? 'visible' : 'hidden',
+                clipPath: clipPath,
+                WebkitClipPath: clipPath,
+                borderWidth: `${cell.borderWidth || layout.borderWidth || 0}px`,
+                borderColor: cell.borderColor || layout.borderColor || '#ffffff',
+                borderStyle: 'solid',
+                opacity: cell.opacity ?? 1,
+              }}
+              onClick={editable ? (e) => handleCellClick(e, idx) : undefined}
+              onMouseDown={editable ? handleCellMouseDown : undefined}
+            >
+              {cell.imageUrl ? (
+                <img
+                  src={cell.imageUrl}
+                  alt={`puzzle-cell-${idx}`}
+                  className="w-full h-full object-cover"
+                  style={{
+                    borderRadius: clipPath ? 'inherit' : undefined,
+                    clipPath: clipPath,
+                    WebkitClipPath: clipPath,
+                  }}
+                />
+              ) : (
+                <div
+                  className="w-full h-full flex items-center justify-center text-gray-300 text-xs"
+                  style={{
+                    backgroundColor: `hsl(${260 + idx * 30}, 60%, ${65 + (idx % 4) * 10}%)`,
+                  }}
+                >
+                  + 添加图片
+                </div>
+              )}
+            </div>
+          );
         })}
-      </svg>
-      {cells.map((cell, idx) => {
-        const info = getClipPathInfo(cell, idx);
-        const clipPath = info.clipPathValue || undefined;
-        return (
-          <div
-            key={idx}
-            className={`absolute ${getAnimationClass(cell.animation)}`}
-            style={{
-              left: `${cell.x}%`,
-              top: `${cell.y}%`,
-              width: `${cell.width}%`,
-              height: `${cell.height}%`,
-              borderRadius: getBorderRadius(cell),
-              overflow: clipPath ? 'visible' : 'hidden',
-              clipPath: clipPath,
-              WebkitClipPath: clipPath,
-              borderWidth: `${cell.borderWidth || layout.borderWidth || 0}px`,
-              borderColor: cell.borderColor || layout.borderColor || '#ffffff',
-              borderStyle: 'solid',
-              opacity: cell.opacity ?? 1,
-            }}
+      </div>
+
+      {/* 操作菜单 —— 通过 Portal 渲染到 body，避免被 canvas 的 transform/overflow 裁切 */}
+      {editable && activeCellIdx !== null && createPortal(
+        <div
+          ref={menuRef}
+          className="fixed z-[9999] bg-white rounded-lg shadow-xl border border-gray-100 overflow-hidden min-w-[140px]"
+          style={{
+            left: `${menuPos.x}px`,
+            top: `${menuPos.y}px`,
+            transform: 'translateX(-50%)',
+          }}
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <button
+            className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors text-left"
+            onClick={handleSelectImage}
           >
-            {cell.imageUrl ? (
-              <img
-                src={cell.imageUrl}
-                alt={`puzzle-cell-${idx}`}
-                className="w-full h-full object-cover"
-                style={{
-                  borderRadius: clipPath ? 'inherit' : undefined,
-                  clipPath: clipPath,
-                  WebkitClipPath: clipPath,
-                }}
-              />
-            ) : (
-              <div
-                className="w-full h-full flex items-center justify-center text-gray-300 text-xs"
-                style={{
-                  backgroundColor: `hsl(${260 + idx * 30}, 60%, ${65 + (idx % 4) * 10}%)`,
-                }}
-              >
-                + 添加图片
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
+            <ImageIcon className="w-4 h-4 text-gray-400" />
+            选择图片
+          </button>
+          <button
+            className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-gray-700"
+            onClick={handleCropImage}
+            disabled={!cells[activeCellIdx]?.originalImageUrl}
+          >
+            <Crop className="w-4 h-4 text-gray-400" />
+            裁切图片
+          </button>
+        </div>,
+        document.body
+      )}
+
+      {/* 裁切弹窗 —— 同样通过 Portal 渲染到 body，避免 canvas transform 导致 fixed 定位失效 */}
+      {/* 外层 div 仅拦截 mousedown 冒泡，防止画布开始拖拽。
+          不能拦截 mousemove/mouseup，否则会阻断裁切弹窗 window 级别的原生监听器 */}
+      {editable && croppingIdx !== null && cells[croppingIdx]?.originalImageUrl && createPortal(
+        <div
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <PuzzleCellCropperModal
+            isOpen={croppingIdx !== null}
+            onClose={() => setCroppingIdx(null)}
+            cell={cells[croppingIdx]}
+            onConfirm={handleCropConfirm}
+          />
+        </div>,
+        document.body
+      )}
+    </>
   );
 }
 
@@ -1055,13 +1224,13 @@ export function CubeRenderer({ element }: { element: CardElement }) {
 // ============================================================
 // 主渲染入口：根据 componentType 选择对应渲染器
 // ============================================================
-export function renderComponent(element: CardElement): React.ReactNode {
+export function renderComponent(element: CardElement, editable = false): React.ReactNode {
   const componentType = element.componentConfig?.componentType;
 
   if (!componentType) return null;
 
   switch (componentType) {
-    case 'puzzle': return <PuzzleRenderer element={element} />;
+    case 'puzzle': return <PuzzleRenderer element={element} editable={editable} />;
     case 'carousel': return <CarouselRenderer element={element} />;
     case 'barrage': return <BarrageRenderer element={element} />;
     case 'messageBoard': return <MessageBoardRenderer element={element} />;

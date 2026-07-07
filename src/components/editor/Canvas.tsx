@@ -182,7 +182,7 @@ const Canvas = memo(function Canvas() {
     );
 
     // 检查是否是组件库的高级组件
-    const componentContent = element.componentConfig ? renderComponent(element) : null;
+    const componentContent = element.componentConfig ? renderComponent(element, true) : null;
 
     if (element.type === 'text') {
       return (

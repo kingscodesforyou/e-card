@@ -4,7 +4,7 @@
  */
 import { useState } from 'react';
 import { useEditorStore } from '../../store';
-import type { CardElement, ComponentConfig, CropParams } from '../../types';
+import type { CardElement, ComponentConfig, ImageTransform } from '../../types';
 import ImageCropperModal from './ImageCropperModal';
 import PuzzleCellCropperModal from './PuzzleCellCropperModal';
 
@@ -58,7 +58,16 @@ export function PuzzlePropertyEditor({ element }: ComponentPropertyEditorProps) 
         reader.onload = (e) => resolve(e.target?.result as string);
         reader.readAsDataURL(files[0]);
       });
-      updateCell(index, { imageUrl: url, originalImageUrl: url, cropParams: undefined, cropHistory: undefined, historyIndex: undefined });
+      updateCell(index, {
+        imageUrl: url,
+        originalImageUrl: url,
+        cropParams: undefined,
+        cropHistory: undefined,
+        historyIndex: undefined,
+        transform: undefined,
+        transformHistory: undefined,
+        transformHistoryIndex: undefined,
+      });
     };
     input.click();
   };
@@ -122,7 +131,7 @@ export function PuzzlePropertyEditor({ element }: ComponentPropertyEditorProps) 
                   </button>
                   <button
                     className="flex-1 py-1.5 border border-red-200 rounded-lg text-xs text-red-500 hover:bg-red-50"
-                    onClick={() => updateCell(selectedCellIndex, { imageUrl: undefined, originalImageUrl: undefined, cropParams: undefined, cropHistory: undefined, historyIndex: undefined })}
+                    onClick={() => updateCell(selectedCellIndex, { imageUrl: undefined, originalImageUrl: undefined, cropParams: undefined, cropHistory: undefined, historyIndex: undefined, transform: undefined, transformHistory: undefined, transformHistoryIndex: undefined })}
                   >
                     移除图片
                   </button>
@@ -315,30 +324,18 @@ export function PuzzlePropertyEditor({ element }: ComponentPropertyEditorProps) 
         isOpen={croppingIndex !== null}
         onClose={() => setCroppingIndex(null)}
         cell={cells[croppingIndex]}
-        onConfirm={(cropParams: CropParams, cropHistory: CropParams[], historyIndex: number) => {
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = cropParams.width;
-            canvas.height = cropParams.height;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              ctx.drawImage(
-                img,
-                cropParams.x,
-                cropParams.y,
-                cropParams.width,
-                cropParams.height,
-                0,
-                0,
-                cropParams.width,
-                cropParams.height
-              );
-              const croppedUrl = canvas.toDataURL('image/png');
-              updateCell(croppingIndex, { imageUrl: croppedUrl, cropParams, cropHistory, historyIndex });
-            }
-          };
-          img.src = cells[croppingIndex].originalImageUrl!;
+        onConfirm={(
+          croppedImageUrl: string,
+          transformVal: ImageTransform,
+          transformHistory: ImageTransform[],
+          transformHistoryIndex: number
+        ) => {
+          updateCell(croppingIndex, {
+            imageUrl: croppedImageUrl,
+            transform: transformVal,
+            transformHistory,
+            transformHistoryIndex,
+          });
         }}
       />
     )}
