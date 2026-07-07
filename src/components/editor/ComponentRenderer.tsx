@@ -222,18 +222,68 @@ export function PuzzleRenderer({ element, editable = false }: { element: CardEle
                 />
               ) : (
                 <div
-                  className="w-full h-full flex items-center justify-center text-gray-300 text-xs"
+                  className="w-full h-full flex items-center justify-center text-gray-400 text-xs"
                   style={{
-                    backgroundColor: `hsl(${260 + idx * 30}, 60%, ${65 + (idx % 4) * 10}%)`,
+                    backgroundColor: editable
+                      ? `rgba(219, 234, 254, ${0.3 + (idx % 5) * 0.12})`
+                      : 'transparent',
                   }}
                 >
-                  + 添加图片
+                  {editable ? '+ 添加图片' : ''}
                 </div>
               )}
             </div>
           );
         })}
+
       </div>
+
+      {/* 选中子图的虚线边框 —— 独立覆盖层，放在 overflow:hidden 容器外部，
+          对于自定义形状用 SVG path + stroke-dasharray 绘制，矩形/圆形用 CSS border */}
+      {editable && activeCellIdx !== null && cells[activeCellIdx] && (() => {
+        const ac = cells[activeCellIdx];
+        const ai = getClipPathInfo(ac, activeCellIdx);
+        const hasSvgShape = ai.useSvgClipPath && !!ai.svgPathData;
+        const baseStyle: React.CSSProperties = {
+          left: `calc(${ac.x}% + ${gap}px)`,
+          top: `calc(${ac.y}% + ${gap}px)`,
+          width: `${ac.width}%`,
+          height: `${ac.height}%`,
+          zIndex: 10,
+        };
+        if (hasSvgShape) {
+          return (
+            <div className="absolute pointer-events-none" style={baseStyle}>
+              <svg
+                className="w-full h-full"
+                viewBox="0 0 1 1"
+                preserveAspectRatio="none"
+                style={{ overflow: 'visible' }}
+              >
+                <path
+                  d={convertPercentToUnit(ai.svgPathData)}
+                  fill="none"
+                  stroke="#000"
+                  strokeWidth="2"
+                  strokeDasharray="4 3"
+                  vectorEffect="non-scaling-stroke"
+                />
+              </svg>
+            </div>
+          );
+        }
+        return (
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              ...baseStyle,
+              border: '2px dashed #000',
+              borderRadius: getBorderRadius(ac),
+              boxSizing: 'border-box',
+            }}
+          />
+        );
+      })()}
 
       {/* 操作菜单 —— 通过 Portal 渲染到 body，避免被 canvas 的 transform/overflow 裁切 */}
       {editable && activeCellIdx !== null && createPortal(

@@ -59,7 +59,7 @@ const categories: Category[] = [
           content: '',
           position: { x: 5, y: 20 },
           size: { width: 90, height: 55 },
-          style: { backgroundColor: '#f0f0f0', borderRadius: 8 },
+          style: { backgroundColor: 'transparent', borderRadius: 8 },
         },
       },
       {
@@ -1314,7 +1314,7 @@ const ComponentPicker = () => {
       content: '',
       position: { x: 5, y: 20 },
       size: { width: 90, height: 55 },
-      style: { backgroundColor: '#f0f0f0', borderRadius: 8 },
+      style: { backgroundColor: 'transparent', borderRadius: 8 },
       componentConfig: {
         componentType: 'puzzle',
         puzzleTemplateId: template.id,
