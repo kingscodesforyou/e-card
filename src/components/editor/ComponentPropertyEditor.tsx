@@ -7,6 +7,7 @@ import { useEditorStore } from '../../store';
 import type { CardElement, ComponentConfig, ImageTransform } from '../../types';
 import ImageCropperModal from './ImageCropperModal';
 import PuzzleCellCropperModal from './PuzzleCellCropperModal';
+import ColorPicker from '../common/ColorPicker';
 
 interface ComponentPropertyEditorProps {
   element: CardElement;
@@ -160,11 +161,13 @@ export function PuzzlePropertyEditor({ element }: ComponentPropertyEditorProps) 
           <div>
             <label className="block text-xs text-gray-500 mb-1">边框颜色</label>
             <div className="flex items-center gap-2">
-              <input
-                type="color"
+              <ColorPicker
                 value={selectedCell.borderColor || '#ffffff'}
-                onChange={(e) => updateCell(selectedCellIndex, { borderColor: e.target.value })}
-                className="w-8 h-8 rounded cursor-pointer border border-gray-200"
+                onChange={(color) => updateCell(selectedCellIndex, { borderColor: color })}
+                size="sm"
+                showPresets={false}
+                showHexInput={false}
+                showEyedropper={false}
               />
               <input
                 type="text"
@@ -260,11 +263,13 @@ export function PuzzlePropertyEditor({ element }: ComponentPropertyEditorProps) 
           <div>
             <label className="block text-xs text-gray-400 mb-1">边框颜色</label>
             <div className="flex items-center gap-2">
-              <input
-                type="color"
+              <ColorPicker
                 value={layout.borderColor || '#ffffff'}
-                onChange={(e) => updateLayout({ borderColor: e.target.value })}
-                className="w-8 h-8 rounded cursor-pointer border border-gray-200"
+                onChange={(color) => updateLayout({ borderColor: color })}
+                size="sm"
+                showPresets={false}
+                showHexInput={false}
+                showEyedropper={false}
               />
               <input
                 type="text"
@@ -1246,20 +1251,26 @@ export function DrawingBoardPropertyEditor({ element }: ComponentPropertyEditorP
     <div className="space-y-4">
       <div>
         <label className="block text-xs text-gray-500 mb-1">背景颜色</label>
-        <input
-          type="color"
+        <ColorPicker
           value={config.canvasBgColor || '#ffffff'}
-          onChange={(e) => updateConfig({ canvasBgColor: e.target.value })}
-          className="w-10 h-10 border border-gray-200 rounded cursor-pointer"
+          onChange={(color) => updateConfig({ canvasBgColor: color })}
+          size="md"
+          showPresets={true}
+          showHexInput={true}
+          showEyedropper={true}
+          presetCount={8}
         />
       </div>
       <div>
         <label className="block text-xs text-gray-500 mb-1">默认画笔颜色</label>
-        <input
-          type="color"
+        <ColorPicker
           value={config.canvasBrushColor || '#8B5CF6'}
-          onChange={(e) => updateConfig({ canvasBrushColor: e.target.value })}
-          className="w-10 h-10 border border-gray-200 rounded cursor-pointer"
+          onChange={(color) => updateConfig({ canvasBrushColor: color })}
+          size="md"
+          showPresets={true}
+          showHexInput={true}
+          showEyedropper={true}
+          presetCount={8}
         />
       </div>
       <div>
@@ -1316,15 +1327,17 @@ export function GradientPropertyEditor({ element }: ComponentPropertyEditorProps
         <div className="flex gap-2 flex-wrap mb-2">
           {(config.gradientColors || ['#8B5CF6', '#EC4899', '#06B6D4']).map((color: string, idx: number) => (
             <div key={idx} className="flex items-center gap-1">
-              <input
-                type="color"
+              <ColorPicker
                 value={color}
-                onChange={(e) => {
+                onChange={(newColor) => {
                   const colors = [...(config.gradientColors || [])];
-                  colors[idx] = e.target.value;
+                  colors[idx] = newColor;
                   updateConfig({ gradientColors: colors });
                 }}
-                className="w-8 h-8 border border-gray-200 rounded cursor-pointer"
+                size="sm"
+                showPresets={false}
+                showHexInput={false}
+                showEyedropper={false}
               />
               {(config.gradientColors || []).length > 2 && (
                 <button

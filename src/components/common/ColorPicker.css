@@ -1,0 +1,34 @@
+/* react-colorful 样式覆盖 - 确保选择器正确显示 */
+
+.react-colorful {
+  width: 100%;
+  height: 160px;
+  border-radius: 8px;
+  cursor: crosshair;
+}
+
+.react-colorful__saturation {
+  border-radius: 8px 8px 0 0;
+  border-bottom: none;
+}
+
+.react-colorful__hue {
+  height: 12px;
+  border-radius: 0 0 8px 8px;
+}
+
+.react-colorful__saturation-pointer,
+.react-colorful__hue-pointer {
+  width: 18px;
+  height: 18px;
+  border-width: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.react-colorful__saturation-pointer {
+  border-color: white;
+}
+
+.react-colorful__hue-pointer {
+  border-color: white;
+}

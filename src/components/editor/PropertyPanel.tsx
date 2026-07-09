@@ -6,9 +6,10 @@ import type { ElementAnimation, CardElement } from '../../types';
 import { ai } from '../../lib/ai';
 import AITextActions from '../ai/AITextActions';
 import { getComponentPropertyEditor } from './ComponentPropertyEditor';
+import ColorPicker, { PRESET_COLORS } from '../common/ColorPicker';
 
 
-const presetColors = ['#FFFFFF', '#FF0000', '#FFA500', '#FFFF00', '#00FF00', '#0000FF', '#87CEEB', '#800080', '#808080', '#000000'];
+const presetColors = PRESET_COLORS.slice(0, 10);
 
 const shapePresets = [
   { name: '圆形', icon: 'circle' },
@@ -319,22 +320,23 @@ const PropertyPanel = () => {
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">外阴影</label>
                   <div className="flex items-center gap-2 mb-2">
-                    <input
-                      type="color"
+                    <ColorPicker
                       value={(() => {
                         const bs = selectedElement.style.boxShadow || '';
                         if (bs.startsWith('inset ')) return '#000000';
                         const m = bs.match(/(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/);
                         return m?.[1] || '#000000';
                       })()}
-                      onChange={(e) => {
-                        const color = e.target.value;
+                      onChange={(color) => {
                         const cur = selectedElement.style.boxShadow || '';
                         if (cur.startsWith('inset ')) return;
                         const rest = cur.replace(/(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/g, '').trim();
                         updateElement(selectedElementId, { style: { ...selectedElement.style, boxShadow: rest ? `${rest} ${color}` : `2px 2px 4px ${color}` } });
                       }}
-                      className="w-8 h-8 border border-gray-200 rounded cursor-pointer"
+                      size="sm"
+                      showPresets={false}
+                      showHexInput={false}
+                      showEyedropper={false}
                     />
                     <div className="flex gap-1 flex-wrap">
                       {presetColors.map((color, index) => (
@@ -434,16 +436,14 @@ const PropertyPanel = () => {
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">内阴影</label>
                   <div className="flex items-center gap-2 mb-2">
-                    <input
-                      type="color"
+                    <ColorPicker
                       value={(() => {
                         const bs = selectedElement.style.boxShadow || '';
                         if (!bs.startsWith('inset ')) return '#000000';
                         const m = bs.match(/(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/);
                         return m?.[1] || '#000000';
                       })()}
-                      onChange={(e) => {
-                        const color = e.target.value;
+                      onChange={(color) => {
                         const cur = selectedElement.style.boxShadow || '';
                         if (!cur.startsWith('inset ')) {
                           updateElement(selectedElementId, { style: { ...selectedElement.style, boxShadow: `inset 2px 2px 4px ${color}` } });
@@ -452,7 +452,10 @@ const PropertyPanel = () => {
                         const rest = cur.replace(/(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/g, '').trim();
                         updateElement(selectedElementId, { style: { ...selectedElement.style, boxShadow: rest ? `${rest} ${color}` : `inset 2px 2px 4px ${color}` } });
                       }}
-                      className="w-8 h-8 border border-gray-200 rounded cursor-pointer"
+                      size="sm"
+                      showPresets={false}
+                      showHexInput={false}
+                      showEyedropper={false}
                     />
                     <div className="flex gap-1 flex-wrap">
                       {presetColors.map((color, index) => (
@@ -733,7 +736,10 @@ const PropertyPanel = () => {
                 <span className="text-lg font-bold">A⁻</span>
               </button>
               <button
-                onClick={() => setShowColorPicker(true)}
+                onClick={() => {
+                  // 直接打开 ColorPicker 弹窗
+                  setShowColorPicker(true);
+                }}
                 className="w-10 h-10 border border-gray-200 rounded"
                 style={{ backgroundColor: selectedElement.style.color || '#FFD700' }}
                 title="文字颜色"
@@ -868,7 +874,10 @@ const PropertyPanel = () => {
                 <span className="text-xs font-medium">A A</span>
               </button>
               <button
-                onClick={() => setShowColorPicker(true)}
+                onClick={() => {
+                  // 直接打开 ColorPicker 弹窗
+                  setShowColorPicker(true);
+                }}
                 className="flex-1 h-8 border border-gray-200 rounded flex items-center justify-center hover:bg-gray-50"
                 title="文字颜色"
               >
@@ -948,11 +957,13 @@ const PropertyPanel = () => {
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">边框颜色</label>
                   <div className="flex items-center gap-2">
-                    <input
-                      type="color"
+                    <ColorPicker
                       value={selectedElement.style.borderColor || '#000000'}
-                      onChange={(e) => updateElement(selectedElementId, { style: { ...selectedElement.style, borderColor: e.target.value } })}
-                      className="w-8 h-8 border border-gray-200 rounded cursor-pointer"
+                      onChange={(color) => updateElement(selectedElementId, { style: { ...selectedElement.style, borderColor: color } })}
+                      size="sm"
+                      showPresets={false}
+                      showHexInput={false}
+                      showEyedropper={false}
                     />
                     <div className="flex gap-1 flex-wrap">
                       {presetColors.map((color, index) => (
@@ -1011,19 +1022,20 @@ const PropertyPanel = () => {
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">文字阴影 (text-shadow)</label>
                   <div className="flex items-center gap-2 mb-2">
-                    <input
-                      type="color"
+                    <ColorPicker
                       value={(() => {
                         const m = (selectedElement.style.textShadow || '').match(/(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/);
                         return m?.[1] || '#000000';
                       })()}
-                      onChange={(e) => {
-                        const color = e.target.value;
+                      onChange={(color) => {
                         const cur = selectedElement.style.textShadow || '';
                         const rest = cur.replace(/(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/g, '').trim();
                         updateElement(selectedElementId, { style: { ...selectedElement.style, textShadow: rest ? `${rest} ${color}` : `2px 2px 4px ${color}` } });
                       }}
-                      className="w-8 h-8 border border-gray-200 rounded cursor-pointer"
+                      size="sm"
+                      showPresets={false}
+                      showHexInput={false}
+                      showEyedropper={false}
                     />
                     <div className="flex gap-1 flex-wrap">
                       {presetColors.map((color, index) => (
@@ -1097,19 +1109,20 @@ const PropertyPanel = () => {
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">外阴影 (box-shadow)</label>
                   <div className="flex items-center gap-2 mb-2">
-                    <input
-                      type="color"
+                    <ColorPicker
                       value={(() => {
                         const m = (selectedElement.style.boxShadow || '').match(/(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/);
                         return m?.[1] || '#000000';
                       })()}
-                      onChange={(e) => {
-                        const color = e.target.value;
+                      onChange={(color) => {
                         const cur = selectedElement.style.boxShadow || '';
                         const rest = cur.replace(/(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/g, '').trim();
                         updateElement(selectedElementId, { style: { ...selectedElement.style, boxShadow: rest ? `${rest} ${color}` : `2px 2px 4px ${color}` } });
                       }}
-                      className="w-8 h-8 border border-gray-200 rounded cursor-pointer"
+                      size="sm"
+                      showPresets={false}
+                      showHexInput={false}
+                      showEyedropper={false}
                     />
                     <div className="flex gap-1 flex-wrap">
                       {presetColors.map((color, index) => (
@@ -1331,13 +1344,16 @@ const PropertyPanel = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">填充颜色</label>
                 <div className="flex items-center gap-2">
-                  <input
-                    type="color"
+                  <ColorPicker
                     value={(selectedElement.style.backgroundColor as string) || '#8B5CF6'}
-                    onChange={(e) => updateElement(selectedElementId, {
-                      style: { ...selectedElement.style, backgroundColor: e.target.value },
+                    onChange={(color) => updateElement(selectedElementId, {
+                      style: { ...selectedElement.style, backgroundColor: color },
                     })}
-                    className="w-10 h-10 rounded cursor-pointer"
+                    size="md"
+                    showPresets={true}
+                    showHexInput={true}
+                    showEyedropper={true}
+                    presetCount={10}
                   />
                   <input
                     type="text"
@@ -1394,13 +1410,15 @@ const PropertyPanel = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">边框</label>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <input
-                      type="color"
+                    <ColorPicker
                       value={(selectedElement.style.borderColor as string) || '#000000'}
-                      onChange={(e) => updateElement(selectedElementId, {
-                        style: { ...selectedElement.style, borderColor: e.target.value },
+                      onChange={(color) => updateElement(selectedElementId, {
+                        style: { ...selectedElement.style, borderColor: color },
                       })}
-                      className="w-10 h-8 rounded cursor-pointer"
+                      size="sm"
+                      showPresets={false}
+                      showHexInput={false}
+                      showEyedropper={false}
                     />
                     <input
                       type="number"
@@ -1433,13 +1451,16 @@ const PropertyPanel = () => {
           {isIcon && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">图标颜色</label>
-              <input
-                type="color"
+              <ColorPicker
                 value={(selectedElement.style.color as string) || '#F59E0B'}
-                onChange={(e) => updateElement(selectedElementId, {
-                  style: { ...selectedElement.style, color: e.target.value },
+                onChange={(color) => updateElement(selectedElementId, {
+                  style: { ...selectedElement.style, color: color },
                 })}
-                className="w-full h-10 rounded-lg cursor-pointer"
+                size="md"
+                showPresets={true}
+                showHexInput={true}
+                showEyedropper={true}
+                presetCount={10}
               />
             </div>
           )}
@@ -1554,11 +1575,14 @@ const PropertyPanel = () => {
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">字体颜色</label>
-          <input
-            type="color"
+          <ColorPicker
             value={selectedElement.style.color || '#333333'}
-            onChange={(e) => updateElement(selectedElementId, { style: { ...selectedElement.style, color: e.target.value } })}
-            className="w-full h-10 rounded-lg cursor-pointer"
+            onChange={(color) => updateElement(selectedElementId, { style: { ...selectedElement.style, color: color } })}
+            size="md"
+            showPresets={true}
+            showHexInput={true}
+            showEyedropper={true}
+            presetCount={10}
           />
         </div>
         <div>
@@ -2356,15 +2380,18 @@ const AnimationTab = ({
               <X className="w-4 h-4 text-gray-500" />
             </button>
           </div>
-          <input
-            type="color"
+          <ColorPicker
             value={selectedElement.style.color || '#333333'}
-            onChange={(e) => {
+            onChange={(color) => {
               updateElement(selectedElementId, {
-                style: { ...selectedElement.style, color: e.target.value },
+                style: { ...selectedElement.style, color: color },
               });
             }}
-            className="w-full h-10 rounded cursor-pointer mb-3"
+            size="md"
+            showPresets={true}
+            showHexInput={true}
+            showEyedropper={true}
+            presetCount={10}
           />
           <div className="flex gap-1 flex-wrap">
             {presetColors.map((color) => (

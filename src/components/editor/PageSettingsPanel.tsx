@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { Music, Image as ImageIcon, Settings, Upload, X, Sparkles, Loader2 } from 'lucide-react';
 import { useEditorStore } from '../../store';
 import { ai } from '../../lib/ai';
+import ColorPicker, { PRESET_COLORS } from '../common/ColorPicker';
 
 const PageSettingsPanel = () => {
   const { currentCard, updatePage } = useEditorStore();
   const currentPage = currentCard.pages[currentCard.currentPageIndex];
-  
+
   const [bgTab, setBgTab] = useState<'color' | 'image'>('color');
   const [audioUrl, setAudioUrl] = useState(currentPage?.audioUrl || '');
   const [aiBgDesc, setAiBgDesc] = useState('');
@@ -16,6 +17,10 @@ const PageSettingsPanel = () => {
 
   if (!currentPage) return null;
 
+  const storeBgColor = currentPage.backgroundColor || '#ffffff';
+
+  // ColorPicker 的 onChange 仅在用户点击"确认"时触发一次
+  // 选择期间零 store 更新 → 不会卡死
   const handleBackgroundColorChange = (color: string) => {
     updatePage(currentPage.id, { backgroundColor: color });
   };
@@ -37,12 +42,17 @@ const PageSettingsPanel = () => {
     updatePage(currentPage.id, { audioAutoplay: !currentPage.audioAutoplay });
   };
 
-  const handleTransitionChange = (transition: 'none' | 'fade' | 'slide' | 'zoom' | 'flip') => {
+  const handleTransitionChange = (
+    transition: 'none' | 'fade' | 'slide' | 'zoom' | 'flip'
+  ) => {
     updatePage(currentPage.id, { transition });
   };
 
   const handleRemoveBackground = () => {
-    updatePage(currentPage.id, { backgroundUrl: undefined, backgroundColor: '#ffffff' });
+    updatePage(currentPage.id, {
+      backgroundUrl: undefined,
+      backgroundColor: '#ffffff',
+    });
   };
 
   const handleAiGenerateBackground = async () => {
@@ -51,13 +61,18 @@ const PageSettingsPanel = () => {
     setAiBgError('');
     setAiBgPreview('');
 
-    const { data, error } = await ai.generateBackground(aiBgDesc);
-    if (error) {
-      setAiBgError(error.message || '生成失败');
-    } else if (data) {
-      setAiBgPreview(data);
+    try {
+      const { data, error } = await ai.generateBackground(aiBgDesc);
+      if (error) {
+        setAiBgError(error.message || '生成失败');
+      } else if (data) {
+        setAiBgPreview(data);
+      }
+    } catch (err) {
+      setAiBgError(err instanceof Error ? err.message : '生成失败，请重试');
+    } finally {
+      setAiBgGenerating(false);
     }
-    setAiBgGenerating(false);
   };
 
   const handleApplyAiBackground = () => {
@@ -72,6 +87,8 @@ const PageSettingsPanel = () => {
     setAudioUrl('');
     updatePage(currentPage.id, { audioUrl: undefined });
   };
+
+  const presetBgColors = PRESET_COLORS.slice(0, 12);
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 space-y-4">
@@ -110,19 +127,16 @@ const PageSettingsPanel = () => {
         </div>
 
         {bgTab === 'color' ? (
-          <div className="flex items-center gap-2">
-            <input
-              type="color"
-              value={currentPage.backgroundColor || '#ffffff'}
-              onChange={(e) => handleBackgroundColorChange(e.target.value)}
-              className="w-10 h-8 rounded cursor-pointer"
-            />
-            <input
-              type="text"
-              value={currentPage.backgroundColor || '#ffffff'}
-              onChange={(e) => handleBackgroundColorChange(e.target.value)}
-              className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded"
-              placeholder="#ffffff"
+          <div className="space-y-2">
+            <ColorPicker
+              value={storeBgColor}
+              onChange={handleBackgroundColorChange}
+              presetColors={presetBgColors}
+              showPresets={true}
+              showEyedropper={true}
+              showHexInput={true}
+              size="md"
+              presetCount={12}
             />
           </div>
         ) : (
@@ -151,7 +165,6 @@ const PageSettingsPanel = () => {
               </button>
             )}
 
-            {/* AI 背景图生成 */}
             <div className="mt-3 pt-3 border-t border-gray-100">
               <label className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1">
                 <Sparkles className="w-3 h-3 text-purple-500" />
@@ -164,7 +177,9 @@ const PageSettingsPanel = () => {
                   onChange={(e) => setAiBgDesc(e.target.value)}
                   placeholder="描述背景，如：金色烟花中国风"
                   className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded"
-                  onKeyDown={(e) => e.key === 'Enter' && handleAiGenerateBackground()}
+                  onKeyDown={(e) =>
+                    e.key === 'Enter' && handleAiGenerateBackground()
+                  }
                 />
                 <button
                   onClick={handleAiGenerateBackground}
@@ -201,7 +216,10 @@ const PageSettingsPanel = () => {
                       应用为背景
                     </button>
                     <button
-                      onClick={() => { setAiBgPreview(''); setAiBgDesc(''); }}
+                      onClick={() => {
+                        setAiBgPreview('');
+                        setAiBgDesc('');
+                      }}
                       className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700"
                     >
                       取消
@@ -247,7 +265,11 @@ const PageSettingsPanel = () => {
           </div>
           {currentPage.audioUrl && (
             <>
-              <audio src={currentPage.audioUrl} controls className="w-full h-8" />
+              <audio
+                src={currentPage.audioUrl}
+                controls
+                className="w-full h-8"
+              />
               <div className="space-y-1">
                 <label className="flex items-center gap-2 text-xs text-gray-600">
                   <input
@@ -280,7 +302,11 @@ const PageSettingsPanel = () => {
         </label>
         <select
           value={currentPage.transition || 'none'}
-          onChange={(e) => handleTransitionChange(e.target.value as any)}
+          onChange={(e) =>
+            handleTransitionChange(
+              e.target.value as 'none' | 'fade' | 'slide' | 'zoom' | 'flip'
+            )
+          }
           className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
         >
           <option value="none">无动画</option>
