@@ -281,7 +281,11 @@ const ColorPicker = ({
 
   const sizes = sizeClasses[size];
   const displayColors = presetColors.slice(0, presetCount);
-  const isEyeDropperSupported = typeof window !== 'undefined' && !!window.EyeDropper;
+  // Edge浏览器禁用EyeDropper支持，即使API存在也认为不支持
+  const isEdgeBrowser = 
+    typeof navigator !== 'undefined' && /Edg/.test(navigator.userAgent);
+  const isEyeDropperSupported = 
+    typeof window !== 'undefined' && !!window.EyeDropper && !isEdgeBrowser;
 
   return (
     <div ref={containerRef} className={`relative inline-block ${className}`}>
@@ -330,7 +334,7 @@ const ColorPicker = ({
               </div>
             )}
 
-            {/* 吸管工具按钮 */}
+            {/* 吸管工具按钮 - Edge浏览器不显示此按钮 */}
             {showEyedropper && isEyeDropperSupported && (
               <button
                 type="button"
