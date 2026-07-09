@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { HexColorPicker, HexColorInput } from 'react-colorful';
-import { Pipette, X, Check } from 'lucide-react';
+import { Pipette } from 'lucide-react';
 import './ColorPicker.css';
 
 // ============================================================
@@ -130,64 +130,70 @@ const ColorPicker = ({
   placeholder = '#000000',
 }: ColorPickerProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  // draftColor：选择期间的临时颜色，仅存在于组件内部
-  const [draftColor, setDraftColor] = useState(() => normalizeHexColor(value));
+  // currentColor：当前选择的颜色，即时更新到onChange
+  const [currentColor, setCurrentColor] = useState(() => normalizeHexColor(value));
   const containerRef = useRef<HTMLDivElement>(null);
   // 防止吸管工具重复打开
   const eyedropperActiveRef = useRef(false);
+  // 防抖更新颜色的ref
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 当弹窗关闭时，同步外部 value 到 draftColor
-  useEffect(() => {
-    if (!isOpen) {
-      setDraftColor(normalizeHexColor(value));
-    }
-  }, [value, isOpen]);
+    // 当外部value变化时更新当前颜色
+    useEffect(() => {
+      setCurrentColor(normalizeHexColor(value));
+    }, [value]);
 
-  // 打开弹窗：用当前 value 初始化 draft
+  // 打开弹窗：直接打开，使用当前颜色
   const handleOpen = useCallback(() => {
     if (disabled) return;
-    setDraftColor(normalizeHexColor(value));
+    setCurrentColor(normalizeHexColor(value));
     setIsOpen(true);
   }, [disabled, value]);
 
-  // 确认：提交 draftColor 到 onChange，关闭弹窗
-  const handleConfirm = useCallback(() => {
-    const normalized = normalizeHexColor(draftColor);
-    onChange(normalized);
-    setIsOpen(false);
-  }, [draftColor, onChange]);
 
-  // 取消：丢弃 draft，关闭弹窗
-  const handleCancel = useCallback(() => {
-    setIsOpen(false);
-  }, []);
-
-  // —— 以下所有操作仅更新 draftColor，绝不调用 onChange ——
-
-  // 色板拖拽
+  // 色板拖拽 - 即时更新颜色（带防抖）
   const handleColorChange = useCallback((color: string) => {
-    setDraftColor(color);
-  }, []);
+    setCurrentColor(color);
+    
+    // 清除之前的防抖计时器
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    
+    // 设置新的防抖计时器（30ms延迟）
+    debounceRef.current = setTimeout(() => {
+      onChange(color);
+    }, 30);
+  }, [onChange]);
 
   // HEX 文本输入
   const handleHexInputChange = useCallback((val: string) => {
     if (isValidHexColor(val)) {
-      setDraftColor(normalizeHexColor(val));
+      const normalized = normalizeHexColor(val);
+      setCurrentColor(normalized);
+      onChange(normalized);
     } else {
       // 允许不完整输入，仅更新显示
-      setDraftColor(val);
+      setCurrentColor(val);
     }
-  }, []);
+  }, [onChange]);
 
   const handleHexInputBlur = useCallback(() => {
     // 失焦时恢复为有效颜色
-    setDraftColor((prev) => normalizeHexColor(prev));
-  }, []);
+    setCurrentColor((prev) => {
+      const normalized = normalizeHexColor(prev);
+      if (normalized !== prev) {
+        onChange(normalized);
+      }
+      return normalized;
+    });
+  }, [onChange]);
 
-  // 预设颜色点击
+  // 预设颜色点击 - 即时生效
   const handlePresetClick = useCallback((color: string) => {
-    setDraftColor(color);
-  }, []);
+    setCurrentColor(color);
+    onChange(color);
+  }, [onChange]);
 
   // 吸管工具
   const handleEyedropper = useCallback(async () => {
@@ -204,7 +210,9 @@ const ColorPicker = ({
         const result = await eyeDropper.open();
         const color = result.sRGBHex;
         if (isValidHexColor(color)) {
-          setDraftColor(normalizeHexColor(color));
+          const normalized = normalizeHexColor(color);
+          setCurrentColor(normalized);
+          onChange(normalized);
         }
         // 取色完成，重新打开弹窗
         setIsOpen(true);
@@ -220,7 +228,7 @@ const ColorPicker = ({
     }, 100);
   }, []);
 
-  // 点击外部关闭弹窗（视为取消）
+  // 点击外部关闭弹窗（即时关闭）
   useEffect(() => {
     if (!isOpen) return;
 
@@ -238,8 +246,22 @@ const ColorPicker = ({
     return () => {
       clearTimeout(timer);
       document.removeEventListener('mousedown', handleClickOutside);
+
+      // 清除防抖计时器，防止内存泄漏
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
     };
   }, [isOpen]);
+
+  // 组件卸载时清理防抖计时器
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
 
   // ESC 键关闭弹窗（视为取消）
   useEffect(() => {
@@ -257,21 +279,6 @@ const ColorPicker = ({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
-  // Enter 键确认
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        e.stopPropagation();
-        handleConfirm();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, handleConfirm]);
 
   const sizeClasses = {
     sm: { btn: 'w-6 h-6', picker: 'w-48' },
@@ -312,7 +319,7 @@ const ColorPicker = ({
           {/* react-colorful 选择器 —— onChange 仅更新 draft */}
           <div className={`${sizes.picker}`}>
             <HexColorPicker
-              color={draftColor}
+              color={currentColor}
               onChange={handleColorChange}
               style={{ width: '100%', height: '160px' }}
             />
@@ -323,7 +330,7 @@ const ColorPicker = ({
             {showHexInput && (
               <div className="flex-1 relative">
                 <HexColorInput
-                  color={draftColor}
+                  color={currentColor}
                   onChange={handleHexInputChange}
                   onBlur={handleHexInputBlur}
                   prefixed
@@ -366,26 +373,6 @@ const ColorPicker = ({
               </div>
             </div>
           )}
-
-          {/* 确认 / 取消 按钮 —— 核心修复 */}
-          <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={handleConfirm}
-              className="flex-1 py-1.5 text-xs font-medium text-white bg-purple-600 rounded hover:bg-purple-700 transition-colors flex items-center justify-center gap-1"
-            >
-              <Check className="w-3.5 h-3.5" />
-              确认
-            </button>
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="flex-1 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded hover:bg-gray-200 transition-colors flex items-center justify-center gap-1"
-            >
-              <X className="w-3.5 h-3.5" />
-              取消
-            </button>
-          </div>
         </div>
       )}
     </div>
