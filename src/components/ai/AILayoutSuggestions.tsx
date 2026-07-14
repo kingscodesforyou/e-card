@@ -63,7 +63,7 @@ const AILayoutSuggestions = () => {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setIsVisible(false)}>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/30" onClick={() => setIsVisible(false)}>
       <div
         className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[70vh] overflow-y-auto m-4"
         onClick={(e) => e.stopPropagation()}

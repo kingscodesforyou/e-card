@@ -1346,7 +1346,7 @@ const ComponentPicker = () => {
       {isOpen && (
         <div
           ref={menuRef}
-          className="absolute top-full left-[-464px] mt-1 w-[960px] bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-[200] max-h-[500px]"
+          className="absolute top-full left-[-464px] mt-1 w-[960px] bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-[300] max-h-[500px]"
           onMouseEnter={handleMenuMouseEnter}
           onMouseLeave={handleMenuMouseLeave}
         >

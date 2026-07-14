@@ -6,6 +6,9 @@ import { templates, admin } from '../../utils/supabase';
 import Canvas from '../../components/editor/Canvas';
 import PropertyPanel from '../../components/editor/PropertyPanel';
 import EditorSidebar from '../../components/editor/EditorSidebar';
+import ComponentPicker from '../../components/editor/ComponentPicker';
+import AILayoutSuggestions from '../../components/ai/AILayoutSuggestions';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { CardPage, Template, CardElement } from '../../types';
 import { SHAPE_CONTENT } from '../../lib/elementStyle';
 
@@ -52,7 +55,8 @@ const TemplateEditorPage = () => {
   const [templateTitle, setTemplateTitle] = useState('');
   const [saveMessage, setSaveMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [showShapeMenu, setShowShapeMenu] = useState(false);
+
+  useKeyboardShortcuts();
 
   const handleAlign = (alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => {
     const currentPage = currentCard.pages[currentCard.currentPageIndex];
@@ -339,7 +343,7 @@ const TemplateEditorPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* 顶部工具栏 */}
-      <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between flex-shrink-0">
+      <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between flex-shrink-0 relative z-[100] shadow-sm">
         {/* 左侧：返回 + 标题 */}
         <div className="flex items-center gap-3 flex-shrink-0">
           <button
@@ -365,7 +369,7 @@ const TemplateEditorPage = () => {
         </div>
 
         {/* 中间：工具按钮组 */}
-        <div className="flex items-center gap-1 flex-shrink-0 overflow-x-auto hide-scrollbar">
+        <div className="flex items-center gap-1 flex-shrink-0">
           {/* 撤销/重做 */}
           <div className="flex items-center gap-1 pr-2 border-r border-gray-200">
             <button
@@ -417,13 +421,13 @@ const TemplateEditorPage = () => {
             >
               <Sparkles className="w-4 h-4" />
             </button>
+            <ComponentPicker />
           </div>
 
           {/* 形状菜单 */}
-          <div className="flex items-center gap-1 px-2 border-r border-gray-200 relative">
+          <div className="flex items-center gap-1 px-2 border-r border-gray-200 relative group">
             <button
-              onClick={() => setShowShapeMenu(!showShapeMenu)}
-              className="p-2 rounded-lg hover:bg-blue-50 text-gray-600 hover:text-blue-600 transition-all flex items-center gap-1"
+              className="p-2 rounded-lg hover:bg-blue-50 text-gray-600 hover:text-blue-600 transition-all flex items-center gap-1 group-hover:bg-blue-50 group-hover:text-blue-600"
               title="形状菜单"
             >
               <Square className="w-4 h-4" />
@@ -431,52 +435,50 @@ const TemplateEditorPage = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
-            {showShapeMenu && (
-              <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-[100]">
-                <button
-                  onClick={() => { addShape('rectangle'); setShowShapeMenu(false); }}
-                  className="w-full px-4 py-2 flex items-center gap-2 hover:bg-gray-50 text-left text-sm text-gray-700"
-                >
-                  <Square className="w-4 h-4 text-gray-500" />
-                  <span>矩形</span>
-                </button>
-                <button
-                  onClick={() => { addShape('circle'); setShowShapeMenu(false); }}
-                  className="w-full px-4 py-2 flex items-center gap-2 hover:bg-gray-50 text-left text-sm text-gray-700"
-                >
-                  <CircleIcon className="w-4 h-4 text-gray-500" />
-                  <span>圆形</span>
-                </button>
-                <button
-                  onClick={() => { addShape('triangle'); setShowShapeMenu(false); }}
-                  className="w-full px-4 py-2 flex items-center gap-2 hover:bg-gray-50 text-left text-sm text-gray-700"
-                >
-                  <Triangle className="w-4 h-4 text-gray-500" />
-                  <span>三角形</span>
-                </button>
-                <button
-                  onClick={() => { addShape('line'); setShowShapeMenu(false); }}
-                  className="w-full px-4 py-2 flex items-center gap-2 hover:bg-gray-50 text-left text-sm text-gray-700"
-                >
-                  <Minus className="w-4 h-4 text-gray-500" />
-                  <span>线条</span>
-                </button>
-                <button
-                  onClick={() => { addShape('arrow'); setShowShapeMenu(false); }}
-                  className="w-full px-4 py-2 flex items-center gap-2 hover:bg-gray-50 text-left text-sm text-gray-700"
-                >
-                  <ArrowRight className="w-4 h-4 text-gray-500" />
-                  <span>箭头</span>
-                </button>
-                <button
-                  onClick={() => { addShape('star'); setShowShapeMenu(false); }}
-                  className="w-full px-4 py-2 flex items-center gap-2 hover:bg-gray-50 text-left text-sm text-gray-700"
-                >
-                  <Star className="w-4 h-4 text-gray-500" />
-                  <span>星形</span>
-                </button>
-              </div>
-            )}
+            <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-[300] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 min-w-[160px]">
+              <button
+                onClick={() => addShape('rectangle')}
+                className="w-full px-4 py-2 flex items-center gap-2 hover:bg-gray-50 text-left text-sm text-gray-700"
+              >
+                <Square className="w-4 h-4 text-gray-500" />
+                <span>矩形</span>
+              </button>
+              <button
+                onClick={() => addShape('circle')}
+                className="w-full px-4 py-2 flex items-center gap-2 hover:bg-gray-50 text-left text-sm text-gray-700"
+              >
+                <CircleIcon className="w-4 h-4 text-gray-500" />
+                <span>圆形</span>
+              </button>
+              <button
+                onClick={() => addShape('triangle')}
+                className="w-full px-4 py-2 flex items-center gap-2 hover:bg-gray-50 text-left text-sm text-gray-700"
+              >
+                <Triangle className="w-4 h-4 text-gray-500" />
+                <span>三角形</span>
+              </button>
+              <button
+                onClick={() => addShape('line')}
+                className="w-full px-4 py-2 flex items-center gap-2 hover:bg-gray-50 text-left text-sm text-gray-700"
+              >
+                <Minus className="w-4 h-4 text-gray-500" />
+                <span>线条</span>
+              </button>
+              <button
+                onClick={() => addShape('arrow')}
+                className="w-full px-4 py-2 flex items-center gap-2 hover:bg-gray-50 text-left text-sm text-gray-700"
+              >
+                <ArrowRight className="w-4 h-4 text-gray-500" />
+                <span>箭头</span>
+              </button>
+              <button
+                onClick={() => addShape('star')}
+                className="w-full px-4 py-2 flex items-center gap-2 hover:bg-gray-50 text-left text-sm text-gray-700"
+              >
+                <Star className="w-4 h-4 text-gray-500" />
+                <span>星形</span>
+              </button>
+            </div>
           </div>
 
           {/* 对齐工具 */}
@@ -671,7 +673,7 @@ const TemplateEditorPage = () => {
           </div>
 
           {/* 删除 */}
-          <div className="flex items-center gap-1 px-2">
+          <div className="flex items-center gap-1 px-2 border-r border-gray-200">
             <button
               onClick={() => deleteElement(selectedElementId!)}
               disabled={!selectedElementId}
@@ -684,6 +686,11 @@ const TemplateEditorPage = () => {
             >
               <Trash2 className="w-4 h-4" />
             </button>
+          </div>
+
+          {/* AI 布局建议 */}
+          <div className="flex items-center gap-1 pl-2">
+            <AILayoutSuggestions />
           </div>
         </div>
 
@@ -703,6 +710,14 @@ const TemplateEditorPage = () => {
             <Eye className="w-4 h-4" />
             <span className="hidden sm:inline">预览</span>
           </button>
+          <button
+            onClick={() => navigate('/export')}
+            className="px-3 py-1.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2 text-sm"
+            title="导出模板"
+          >
+            <Download className="w-4 h-4" />
+            <span className="hidden sm:inline">导出</span>
+          </button>
         </div>
       </div>
 
@@ -716,17 +731,17 @@ const TemplateEditorPage = () => {
       )}
 
       {/* 主体三栏布局 */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden pt-2">
         {/* 左侧：编辑侧边栏 */}
         <EditorSidebar />
 
         {/* 中间：画布 */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden min-h-0 pt-2">
           <Canvas />
         </div>
 
         {/* 右侧：属性面板 */}
-        <div className="w-80 bg-white border-l border-gray-200 overflow-y-auto p-4">
+        <div className="w-96 bg-white border-l border-gray-200 overflow-y-auto p-4">
           <PropertyPanel />
         </div>
       </div>
