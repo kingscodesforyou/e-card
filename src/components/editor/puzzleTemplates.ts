@@ -55,29 +55,7 @@ export const puzzleTemplates: PuzzleTemplate[] = [
       },
     ],
   },
-  {
-    id: 'puzzle-2-circle-split',
-    name: '圆形对分',
-    category: 2,
-    cells: [
-      {
-        x: 5,
-        y: 5,
-        width: 45,
-        height: 90,
-        shapeType: 'custom',
-        shapePath: 'ellipse(100% 50% at 0% 50%)',
-      },
-      {
-        x: 50,
-        y: 5,
-        width: 45,
-        height: 90,
-        shapeType: 'custom',
-        shapePath: 'ellipse(100% 50% at 100% 50%)',
-      },
-    ],
-  },
+  
   {
     id: 'puzzle-2-diagonal',
     name: '斜角分割',
@@ -421,7 +399,7 @@ export const puzzleTemplates: PuzzleTemplate[] = [
   },
   {
     id: 'puzzle-2-svg-3',
-    name: '翻开的书',
+    name: '学士帽',
     category: 2,
     cells: [
       {
@@ -490,7 +468,7 @@ export const puzzleTemplates: PuzzleTemplate[] = [
   },
   {
     id: 'puzzle-2-svg-6',
-    name: '音乐话筒',
+    name: '圆形对分',
     category: 2,
     cells: [
       {

@@ -10,7 +10,9 @@ interface PuzzleTemplateModalProps {
   onSelect: (template: PuzzleTemplate) => void;
 }
 
-const PAGE_SIZE = 7;
+const PAGE_SIZE = 32;
+const MODAL_WIDTH = 720;
+const MODAL_HEIGHT = 640;
 
 export default function PuzzleTemplateModal({ isOpen, onClose, onSelect }: PuzzleTemplateModalProps) {
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -100,8 +102,11 @@ export default function PuzzleTemplateModal({ isOpen, onClose, onSelect }: Puzzl
 
   return (
     <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-2xl shadow-2xl w-[560px] max-h-[80vh] flex flex-col">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+      <div
+        className="bg-white rounded-2xl shadow-2xl flex flex-col flex-shrink-0"
+        style={{ width: MODAL_WIDTH, height: MODAL_HEIGHT }}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
           <h2 className="text-lg font-semibold text-gray-800">选择拼图模板</h2>
           <button
             onClick={onClose}
@@ -111,7 +116,7 @@ export default function PuzzleTemplateModal({ isOpen, onClose, onSelect }: Puzzl
           </button>
         </div>
 
-        <div className="px-5 py-3 border-b border-gray-100">
+        <div className="px-5 py-3 border-b border-gray-100 flex-shrink-0">
           <div className="flex gap-1 overflow-x-auto pb-1">
             {puzzleCategories.map((cat) => (
               <button
@@ -129,36 +134,38 @@ export default function PuzzleTemplateModal({ isOpen, onClose, onSelect }: Puzzl
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5">
-          <div className="grid grid-cols-7 gap-3">
-            {paginatedTemplates.map((template) => (
-              <button
-                key={template.id}
-                onClick={() => handleTemplateSelect(template)}
-                className="flex flex-col items-center gap-2 group"
-              >
-                <div className="w-full aspect-square rounded-xl overflow-hidden border-2 border-transparent group-hover:border-blue-400 group-hover:shadow-lg transition-all">
-                  {renderTemplatePreview(template)}
-                </div>
-                <span className="text-xs text-gray-600 text-center max-w-full truncate group-hover:text-blue-500">
-                  {template.name}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          {templates.length === 0 && (
-            <div className="text-center py-10 text-gray-400">
-              暂无该分类的模板
+        <div className="flex-1 overflow-y-auto p-5 min-h-0 flex flex-col">
+          {templates.length > 0 ? (
+            <div className="grid grid-cols-8 gap-2 md:gap-3 w-full place-items-start content-start min-h-full">
+              {paginatedTemplates.map((template) => (
+                <button
+                  key={template.id}
+                  onClick={() => handleTemplateSelect(template)}
+                  className="w-full min-w-0 flex flex-col items-center gap-1.5 group p-1 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="w-full aspect-square rounded-lg overflow-hidden border-2 border-transparent group-hover:border-blue-400 group-hover:shadow-md transition-all">
+                    {renderTemplatePreview(template)}
+                  </div>
+                  <span className="text-[11px] text-gray-600 text-center w-full truncate px-0.5 group-hover:text-blue-500">
+                    {template.name}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="flex-1 flex items-center justify-center w-full">
+              <div className="text-center text-gray-400">
+                暂无该分类的模板
+              </div>
             </div>
           )}
         </div>
 
-        {totalPages > 1 && (
-          <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between">
-            <span className="text-xs text-gray-400">
-              共 {templates.length} 个模板
-            </span>
+        <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between flex-shrink-0">
+          <span className="text-xs text-gray-400">
+            共 {templates.length} 个模板
+          </span>
+          {totalPages > 1 ? (
             <div className="flex items-center gap-1">
               <button
                 onClick={() => goToPage(currentPage - 1)}
@@ -188,8 +195,10 @@ export default function PuzzleTemplateModal({ isOpen, onClose, onSelect }: Puzzl
                 &gt;
               </button>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="h-[22px]" />
+          )}
+        </div>
       </div>
     </div>
   );
